@@ -1,6 +1,8 @@
 module Basics where
 
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Data.Empty
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; cong₂; subst)
+open import Relation.Nullary
 
 data Day : Set where
   Monday : Day
@@ -35,6 +37,10 @@ data Bool : Set where
   True : Bool
   False : Bool
 
+{-# BUILTIN BOOL  Bool  #-}
+{-# BUILTIN TRUE  True  #-}
+{-# BUILTIN FALSE False #-}
+
 negb : Bool → Bool
 negb True = False
 negb False = True
@@ -56,6 +62,7 @@ test_orb3 = refl
 test_orb4 : orb True True ≡ True
 test_orb4 = refl
 
+-- Agdaのadmitって何だろう？
 -- admit = {!!}
 
 {-
@@ -247,3 +254,98 @@ test_blt_nat2 : blt_nat 2 4 ≡ True
 test_blt_nat2 = refl
 test_blt_nat3 : blt_nat 4 2 ≡ False
 test_blt_nat3 = refl
+
+
+O+n≡n : {n : Nat} → 0 + n ≡ n
+O+n≡n = refl
+
+O+n'≡n : {n : Nat} → 0 + n ≡ n
+O+n'≡n = refl
+
+{-
+練習問題: ★, optional (simpl_plus)
+
+この問い合わせの結果、Coqが返す応答はなにか？
+
+Eval simpl in (∀ n:nat, n + 0 = n).
+
+また次のものの場合はどうか？
+
+Eval simpl in (∀ n:nat, 0 + n = n).
+
+この二つの違いを示せ。
+-}
+{-
+$ agda -I -i/usr/share/agda-stdlib -i. Basics.agda
+Main> {n : Nat} -> n + 0 ≡ n
+{n : Nat} → plus n 0 ≡ n
+(未証明)
+Main> {n : Nat} -> 0 + n ≡ n
+{n : Nat} → n ≡ n
+(証明済み)
+-}
+
+
+-- Tactic入ってこられてもAgdaさん的にどうしようという気分になるよね
+O+n''≡n : {n : Nat} → 0 + n ≡ n
+O+n''≡n = refl
+
+1+l≡Sn : {n : Nat} → 1 + n ≡ S n
+1+l≡Sn = refl
+
+0*l≡0 : {n : Nat} → 0 * n ≡ 0
+0*l≡0 = refl
+
+-- グワー
+plus_id_example : {n m : Nat} → n ≡ m → n + n ≡ m + m
+plus_id_example {n} {m} eq = cong₂ (_+_) {n} {m} {n} {m} eq eq
+
+{-
+練習問題: ★ (plus_id_exercise)
+
+Admitted.を削除し、証明を完成させなさい。
+-}
+plus_id_exercise : {n m o : Nat} → n ≡ m → m ≡ o → n + m ≡ m + o
+plus_id_exercise {n} {m} {o} = cong₂ (_+_) {n} {m} {m} {o}
+
+mult_zero_plus : {n m : Nat} → (0 + n) * m ≡ n * m
+mult_zero_plus {n} {m} = cong (\a → a * m) (O+n≡n {n})
+-- mult_zero_plus = refl -- でもいいけど
+
+{-
+練習問題: ★★, recommended (mult_1_plus)
+-}
+mult_one_plus : {n m : Nat} → (1 + n) * m ≡ m + (n * m)
+mult_one_plus = refl
+
+
+plus_one_neq_zero_firsttry : {n : Nat} → beq_nat (n + 1) 0 ≡ False
+plus_one_neq_zero_firsttry {0} = refl
+plus_one_neq_zero_firsttry {S n} = refl
+
+negb_involutive : {b : Bool} → negb (negb b) ≡ b
+negb_involutive {True} = refl
+negb_involutive {False} = refl
+
+zero_nbeq_plus_one : {n : Nat} → beq_nat 0 (n + 1) ≡ False
+zero_nbeq_plus_one {0} = refl
+zero_nbeq_plus_one {S n} = refl
+
+¬-negb : {a b : Bool} → a ≡ b →  a ≢ negb b
+¬-negb {True} refl ()
+¬-negb {False} refl ()
+
+andb_true_elim1 : {b c : Bool} → andb b c ≡ True → b ≡ True
+andb_true_elim1 {True} _ = refl
+andb_true_elim1 {False} eq = ⊥-elim (¬-negb eq refl)
+
+{-
+練習問題: ★★ (andb_true_elim2)
+
+destructを使い、case（もしくはsubcase）を作成して、以下の証明andb_true_elim2を完成させなさい。
+-}
+-- そんなもんネーヨ!
+andb_true_elim2 : {b c : Bool} → andb b c ≡ True → c ≡ True
+andb_true_elim2 {_} {True} eq = refl
+andb_true_elim2 {True} {False} eq = ⊥-elim (¬-negb eq refl)
+andb_true_elim2 {False} {False} eq = ⊥-elim (¬-negb eq refl)
