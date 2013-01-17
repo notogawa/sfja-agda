@@ -1,7 +1,7 @@
 module Basics where
 
 open import Data.Empty
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; cong₂; subst)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; cong; cong₂; trans; subst)
 open import Relation.Nullary
 
 data Day : Set where
@@ -349,3 +349,47 @@ andb_true_elim2 : {b c : Bool} → andb b c ≡ True → c ≡ True
 andb_true_elim2 {_} {True} eq = refl
 andb_true_elim2 {True} {False} eq = ⊥-elim (¬-negb eq refl)
 andb_true_elim2 {False} {False} eq = ⊥-elim (¬-negb eq refl)
+
+
+n+O≡n : {n : Nat} → n + 0 ≡ n
+n+O≡n {0} = refl
+n+O≡n {S n} = cong S (n+O≡n {n})
+
+minus_diag : {n : Nat} → minus n n ≡ 0
+minus_diag {0} = refl
+minus_diag {S n} = trans refl (minus_diag {n})
+
+{-
+練習問題: ★★, recommended (basic_induction)
+-}
+n*O≡n : {n : Nat} → n * 0 ≡ 0
+n*O≡n {0} = refl
+n*O≡n {S n} = trans (trans (mult_one_plus {n} {0}) (O+n≡n {n * 0})) (n*O≡n {n})
+
+plus_n_Sm : {n m : Nat} → S (n + m) ≡ n + (S m)
+plus_n_Sm {0}   {m} = refl
+plus_n_Sm {S n} {m} = cong S (plus_n_Sm {n} {m})
+
+plus_comm : {n m : Nat} → n + m ≡ m + n
+plus_comm {0}   {m} = trans (O+n≡n {m}) (sym (n+O≡n {m}))
+plus_comm {S n} {m} = trans (cong S (plus_comm {n} {m})) (plus_n_Sm {m} {n})
+
+
+double : Nat → Nat
+double 0 = 0
+double (S n) = S (S (double n))
+
+{-
+練習問題: ★★ (double_plus)
+-}
+double_plus : {n : Nat} → double n ≡ n + n
+double_plus {0} = refl
+double_plus {S n} = trans (cong (\x → S (S x)) (double_plus {n})) (cong S (plus_n_Sm {n} {n}))
+
+{-
+練習問題: ★ (destruct_induction)
+
+destructとinductionの違いを短く説明しなさい。
+-}
+-- base case で証明した結果を step case で使えるかどうか．
+-- なんだろうけどAgdaの場合あんまり気にしないからなー
