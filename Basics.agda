@@ -452,6 +452,23 @@ plus-swap {n} {m} {p} = trans (trans assert1 assert2) assert3
     assert2 = cong (\a → a + p) (plus-comm {n} {m})
     assert3 : (m + n) + p ≡ m + (n + p)
     assert3 = sym (plus-assoc {m} {n} {p})
+
+-- このへんから流石に何やってんだになってくるかもなので，
+-- 等価性の推移律(trans)を連打するよりも≡-Reasoningで書いたほうが証明の仕上がりが良い
+plus-swap' : {n m p : Nat} → n + (m + p) ≡ m + (n + p)
+plus-swap' {n} {m} {p} =
+  begin
+     n + (m + p)
+  ≡⟨ plus-assoc {n} {m} {p} ⟩
+     (n + m) + p
+  ≡⟨ cong (\a → a + p) (plus-comm {n} {m}) ⟩
+     (m + n) + p
+  ≡⟨ sym (plus-assoc {m} {n} {p}) ⟩
+     m + (n + p)
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+
 {-
 では、乗法が可換であることを証明しましょう。おそらく、補助的な定理を定義し、それを使って全体を証明することになると思います。先ほど証明したplus-swapが便利に使えるでしょう。
 -}
@@ -471,6 +488,31 @@ mult-comm {S m} {n} = trans (cong (\a → n + a) (mult-comm {m} {n})) (mult-one-
         assert3' = plus-assoc {m} {1} {n * (1 + m)}
         assert4' : (m + 1) + n * (1 + m) ≡ (1 + m) + n * (1 + m)
         assert4' = cong (\a → a + n * (1 + m)) (plus-comm {m} {1})
+    -- ≡-Reasoningで
+    mult-one-plus'' : {n m : Nat} → n + n * m ≡ n * (1 + m)
+    mult-one-plus'' {0} {m} = refl
+    mult-one-plus'' {S n} {m} =
+      begin
+        S n + S n * m
+      ≡⟨ refl ⟩ -- Reasoningがreflの変形は別に書く必要は無いが可読性のため
+        S n + (m + n * m)
+      ≡⟨ plus-swap {S n} {m} ⟩
+        m + (S n + n * m)
+      ≡⟨ refl ⟩
+        m + ((1 + n) + n * m)
+      ≡⟨ refl ⟩
+        m + (1 + (n + n * m))
+      ≡⟨ cong (\a → m + (1 + a)) (mult-one-plus' {n} {m}) ⟩
+        m + (1 + n * (1 + m))
+      ≡⟨ plus-assoc {m} {1} {n * (1 + m)} ⟩
+        (m + 1) + n * (1 + m)
+      ≡⟨ cong (\a → a + n * (1 + m)) (plus-comm {m} {1}) ⟩
+        (1 + m) + n * (1 + m)
+      ≡⟨ refl ⟩
+        S n * (1 + m)
+      ∎
+      where
+        open Relation.Binary.PropositionalEquality.≡-Reasoning
 
 {-
 練習問題: ★★, optional (evenb-n--oddb-Sn)
