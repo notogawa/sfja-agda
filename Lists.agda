@@ -2,7 +2,7 @@ module Lists where
 
 open import Data.Nat
 open import Data.Bool
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans; subst)
 
 -- 前章"Basics"の定義をimportしても良いが，
 -- Bool/Natならagda標準ライブラリにあるので以後そっちを使う．
@@ -178,6 +178,11 @@ test-alternate4 = refl
 ℕ-eq (suc n) zero = false
 ℕ-eq (suc n) (suc m) = ℕ-eq n m
 
+ℕ-eq-refl : {n : ℕ} → ℕ-eq n n ≡ true
+ℕ-eq-refl {0} = refl
+ℕ-eq-refl {suc n} = ℕ-eq-refl {n}
+
+
 count : ℕ → ℕ-bag → ℕ
 count n [] = 0
 count n (x ∷ xs) = (if ℕ-eq n x then 1 else 0) + count n xs
@@ -259,10 +264,6 @@ count や add を使ったバッグに関する面白い定理書き、それを
 -}
 add-count-commute-count-inc : {n : ℕ} {xs : ℕ-bag} → count n (add n xs) ≡ 1 + count n xs
 add-count-commute-count-inc {n} {xs} = cong (\eq → (if eq then 1 else 0) + count n xs) (ℕ-eq-refl {n})
-  where
-    ℕ-eq-refl : {n : ℕ} → ℕ-eq n n ≡ true
-    ℕ-eq-refl {0} = refl
-    ℕ-eq-refl {suc n} = ℕ-eq-refl {n}
 
 []-app : {l : ℕ-list} → [] ++ l ≡ l
 []-app = refl
@@ -414,3 +415,188 @@ rev-injective {xs} {ys} eq =
   where
     open Relation.Binary.PropositionalEquality.≡-Reasoning
 -- 難しい解法ってなんだろう？
+
+
+data ℕ-option : Set where
+  Some : ℕ → ℕ-option
+  None : ℕ-option
+
+index-bad : ℕ → ℕ-list → ℕ
+index-bad n [] = 42
+index-bad 0 (x ∷ _) = x
+index-bad (suc n) (_ ∷ xs) = index-bad n xs
+
+index : ℕ → ℕ-list → ℕ-option
+index n [] = None
+index 0 (x ∷ _) = Some x
+index (suc n) (_ ∷ xs) = index n xs
+
+test-index1 : index 0 (4 ∷ 5 ∷ 6 ∷ [ 7 ]) ≡ Some 4
+test-index1 = refl
+test-index2 : index 3 (4 ∷ 5 ∷ 6 ∷ [ 7 ]) ≡ Some 7
+test-index2 = refl
+test-index3 : index 10 (4 ∷ 5 ∷ 6 ∷ [ 7 ]) ≡ None
+test-index3 = refl
+
+index' : ℕ → ℕ-list → ℕ-option
+index' n [] = None
+index' n (x ∷ xs) = if ℕ-eq 0 n then Some x else index' (pred n) xs
+
+option-elim : ℕ-option → ℕ → ℕ
+option-elim None default = default
+option-elim (Some n) _ = n
+
+{-
+練習問題: ★★ (hd_opt)
+
+同じ考え方を使って、以前定義した hd 関数を修正し、 nil の場合に返す値を渡さなくて済むようにしなさい。
+-}
+
+hd-opt : ℕ-list → ℕ-option
+hd-opt [] = None
+hd-opt (x ∷ _) = Some x
+
+test-hd-opt1 : hd-opt [] ≡ None
+test-hd-opt1 = refl
+test-hd-opt2 : hd-opt [ 1 ] ≡ Some 1
+test-hd-opt2 = refl
+test-hd-opt3 : hd-opt (5 ∷ [ 6 ]) ≡ Some 5
+test-hd-opt3 = refl
+
+{-
+練習問題: ★★, optional (option_elim_hd)
+
+新しい hd_opt と古い hd の関係についての練習問題です。
+-}
+
+option-elim-hd : {l : ℕ-list} {default : ℕ} → hd default l ≡ option-elim (hd-opt l) default
+option-elim-hd {[]} = refl
+option-elim-hd {x ∷ xs} = refl
+
+{-
+練習問題: ★★, recommended (beq_natlist)
+
+数のリストふたつを比較し等価性を判定する関数 beq_natlist の定義を完成させなさい。そして、 beq_natlist l l が任意のリスト l で true となることを証明しなさい。
+-}
+ℕ-list-eq : ℕ-list → ℕ-list → Bool
+ℕ-list-eq [] [] = true
+ℕ-list-eq [] (y ∷ ys) = false
+ℕ-list-eq (x ∷ xs) [] = false
+ℕ-list-eq (x ∷ xs) (y ∷ ys) = ℕ-eq x y ∧ ℕ-list-eq xs ys
+
+test-ℕ-list-eq1 : ℕ-list-eq [] [] ≡ true
+test-ℕ-list-eq1 = refl
+test-ℕ-list-eq2 : ℕ-list-eq (1 ∷ 2 ∷ [ 3 ]) (1 ∷ 2 ∷ [ 3 ]) ≡ true
+test-ℕ-list-eq2 = refl
+test-ℕ-list-eq3 : ℕ-list-eq (1 ∷ 2 ∷ [ 3 ]) (1 ∷ 2 ∷ [ 4 ]) ≡ false
+test-ℕ-list-eq3 = refl
+
+ℕ-list-eq-refl : {l : ℕ-list} → true ≡ ℕ-list-eq l l
+ℕ-list-eq-refl {[]} = refl
+ℕ-list-eq-refl {x ∷ xs} =
+  begin
+     true
+  ≡⟨ refl ⟩
+     true ∧ true
+  ≡⟨ sym (cong (\a → a ∧ true) (ℕ-eq-refl {x})) ⟩
+     ℕ-eq x x ∧ true
+  ≡⟨ cong (_∧_ (ℕ-eq x x)) (ℕ-list-eq-refl {xs}) ⟩
+     ℕ-eq x x ∧ ℕ-list-eq xs xs
+  ≡⟨ refl ⟩
+     ℕ-list-eq (x ∷ xs) (x ∷ xs)
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+
+
+silly1 : {n m o p : ℕ} → n ≡ m → n ∷ [ o ] ≡ n ∷ [ p ] → n ∷ [ o ] ≡ m ∷ [ p ]
+silly1 {n} {m} {o} {p} eq1 eq2 = trans eq2 (cong (\z → z ∷ [ p ]) eq1)
+
+silly2 : {n m o p : ℕ} → n ≡ m → ({q r : ℕ} → q ≡ r → q ∷ [ o ] ≡ r ∷ [ p ]) → n ∷ [ o ] ≡ m ∷ [ p ]
+silly2 {n} {m} eq1 eq2 = eq2 {n} {m} eq1
+
+silly2a : {n m : ℕ} → (n , n) ≡ (m , m) → ({q r : ℕ} → (q , q) ≡ (r , r) → [ q ] ≡ [ r ]) → [ n ] ≡ [ m ]
+silly2a {n} {m} eq1 eq2 = eq2 {n} {m} eq1
+
+{-
+練習問題: ★★, optional (silly_ex)
+
+次の証明を simpl を使わずに完成させなさい。
+-}
+-- simpl...
+silly-ex : ({n : ℕ} → even n ≡ true → odd (suc n) ≡ true) → even 3 ≡ true → odd 4 ≡ true
+silly-ex eq = eq {3}
+
+{-
+silly3-firsttry : {n : ℕ} → true ≡ ℕ-eq n 5 → ℕ-eq (suc (suc n)) 7 ≡ true
+silly3-firsttry = ?
+-}
+
+silly3 : {n : ℕ} → true ≡ ℕ-eq n 5 → ℕ-eq (suc (suc n)) 7 ≡ true
+silly3 = sym
+
+{-
+練習問題: ★★★, recommended (apply_exercise1)
+-}
+rev-exercise1 : {l l' : ℕ-list} → l ≡ rev l' → l' ≡ rev l
+rev-exercise1 eq rewrite eq = sym rev-involutive
+
+{-
+練習問題: ★ (apply_rewrite)
+
+apply と rewrite の違いを簡単に説明しなさい。どちらもうまく使えるような場面はありますか？
+-}
+-- 略
+
+{-
+練習問題: ★★, optional (app_ass')
+
+++ の結合則をより一般的な仮定のもとで証明しなさい。（最初の行を変更せずに）次の証明を完成させること。
+-}
+-- 略
+
+{-
+練習問題: ★★★ (apply_exercise2)
+
+induction の前に m を intros していないことに注意してください。これによって仮定が一般化され、帰納法の仮定が特定の m に縛られることがなくなり、より使いやすくなりました。
+-}
+-- うわーtactic無いとこのへんの文面全然意味無いなー
+ℕ-eq-sym : {n m : ℕ} → ℕ-eq n m ≡ ℕ-eq m n
+ℕ-eq-sym {0} {0} = refl
+ℕ-eq-sym {0} {suc m} = refl
+ℕ-eq-sym {suc n} {0} = refl
+ℕ-eq-sym {suc n} {suc m} = ℕ-eq-sym {n} {m}
+
+{-
+練習問題: ★★★, recommended (beq_nat_sym_informal)
+
+以下の補題について上の証明と対応する非形式的な証明を書きなさい。
+
+定理: 任意の nat n m について、 beq_nat n m = beq_nat m n。
+-}
+-- 略
+
+
+
+data ℕ-dict : Set where
+  ℕ-empty : ℕ-dict
+  ℕ-record : ℕ → ℕ → ℕ-dict → ℕ-dict
+
+insert : (key value : ℕ) → (d : ℕ-dict) → ℕ-dict
+insert = ℕ-record
+
+find : (key : ℕ) (d : ℕ-dict) → ℕ-option
+find key ℕ-empty = None
+find key (ℕ-record k v d) = if ℕ-eq key k then Some v else find key d
+
+{-
+練習問題: ★ (dictionary_invariant1)
+-}
+dictionary-invariant1 : {d : ℕ-dict} {k v : ℕ} → find k (insert k v d) ≡ Some v
+dictionary-invariant1 {d} {k} {v} = cong (\a → if a then Some v else find k d) (ℕ-eq-refl {k})
+
+{-
+練習問題: ★ (dictionary_invariant2)
+-}
+dictionary-invariant2 : {d : ℕ-dict} {m n o : ℕ} → ℕ-eq m n ≡ false → find m d ≡ find m (insert n o d)
+dictionary-invariant2 {d} {m} {n} {o} eq = cong (\a → if a then Some o else find m d) (sym eq)
