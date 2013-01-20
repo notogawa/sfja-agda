@@ -96,17 +96,22 @@ repeat x (suc n) = x ∷ repeat x n
 test-repeat1 : repeat true 2 ≡ true ∷ true ∷ []
 test-repeat1 = refl
 
-[]-++ : ∀{x} {X : Set x} {l : list X} → [] ++ l ≡ l
-[]-++ {_} {_} {[]} = refl
-[]-++ {_} {_} {x ∷ xs} = cong (\as → x ∷ as) ([]-++ {_} {_} {xs})
+[]-++ : ∀{x} {X : Set x} →
+        (l : list X) → [] ++ l ≡ l
+[]-++ [] = refl
+[]-++ (x ∷ xs) = cong (λ as → x ∷ as) ([]-++ xs)
 
-rev-snoc : ∀{x} {X : Set x} {v : X} {s : list X} → rev (snoc s v) ≡ v ∷ rev s
-rev-snoc {_} {_} {v} {[]} = refl
-rev-snoc {_} {_} {v} {x ∷ xs} = cong (\as → snoc as x) (rev-snoc {_} {_} {v} {xs})
+rev-snoc : ∀{x} {X : Set x} →
+           (v : X) → (s : list X) →
+           rev (snoc s v) ≡ v ∷ rev s
+rev-snoc v [] = refl
+rev-snoc v (x ∷ xs) = cong (λ as → snoc as x) (rev-snoc v xs)
 
-snoc-with-append : ∀{x} {X : Set x} {v : X} {l1 l2 : list X} → snoc (l1 ++ l2) v ≡ l1 ++ snoc l2 v
-snoc-with-append {_} {_} {v} {[]} {ys}= refl
-snoc-with-append {_} {_} {v} {x ∷ xs} {ys}= cong (\as → x ∷ as) (snoc-with-append {_} {_} {v} {xs} {ys})
+snoc-with-append : ∀{x} {X : Set x} →
+                   (v : X) → (l1 : list X) → (l2 : list X) →
+                   snoc (l1 ++ l2) v ≡ l1 ++ snoc l2 v
+snoc-with-append v [] ys = refl
+snoc-with-append v (x ∷ xs) ys = cong (λ as → x ∷ as) (snoc-with-append v xs ys)
 
 
 infixr 2 _×_
@@ -204,7 +209,7 @@ test-hd-opt2 = refl
 doit3times : ∀{x} {X : Set x} → (X → X) → X → X
 doit3times f n = f (f (f n))
 
-test-doit3times : doit3times (\a → a ∸ 2) 9 ≡ 3
+test-doit3times : doit3times (λ a → a ∸ 2) 9 ≡ 3
 test-doit3times = refl
 test-doit3times' : doit3times not true ≡ false
 test-doit3times' = refl
@@ -237,7 +242,8 @@ Coqでは、f : A → B → Cという型の関数はA → (B → C)型と同じ
 
 カリー化は以下のように定義できます。
 -}
-prod-curry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} → (X × Y → Z) → X → Y → Z
+prod-curry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} →
+             (X × Y → Z) → X → Y → Z
 prod-curry f x y = f (x , y)
 {-
 練習問題として、その逆のprod_uncurryを定義し、二つの関数が互いに逆関数であることを証明しなさい。
@@ -246,14 +252,14 @@ prod-uncurry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} → (X → Y → Z
 prod-uncurry f (x , y) = f x y
 
 uncurry-curry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} →
-                {f : X → Y → Z} {x : X} {y : Y} →
+                (f : X → Y → Z) → (x : X) → (y : Y) →
                 prod-curry (prod-uncurry f) x y ≡ f x y
-uncurry-curry = refl
+uncurry-curry f x y = refl
 
 curry-uncurry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} →
-                {f : X × Y → Z} {p : X × Y} →
+                (f : X × Y → Z) → (p : X × Y) →
                 prod-uncurry (prod-curry f) p ≡ f p
-curry-uncurry {_} {_} {_} {_} {_} {_} {f} {(x , y)} = refl
+curry-uncurry f (x , y) = refl
 
 
 filter : ∀{x} {X : Set x} → (X → Bool) → list X → list X
@@ -287,10 +293,10 @@ test-countoddmembers'3 : countoddmembers' [] ≡ 0
 test-countoddmembers'3 = refl
 
 
-test-anon-fun' : doit3times (\n → n * n) 2 ≡ 256
+test-anon-fun' : doit3times (λ n → n * n) 2 ≡ 256
 test-anon-fun' = refl
 
-test-filter2' : filter (\ls → ℕ-eq (length ls) 1) ((1 ∷ 2 ∷ []) ∷ [ 3 ] ∷ [ 4 ] ∷ (5 ∷ 6 ∷ []) ∷ [] ∷ [ 8 ] ∷ []) ≡ [ 3 ] ∷ [ 4 ] ∷ [ 8 ] ∷ []
+test-filter2' : filter (λ ls → ℕ-eq (length ls) 1) ((1 ∷ 2 ∷ []) ∷ [ 3 ] ∷ [ 4 ] ∷ (5 ∷ 6 ∷ []) ∷ [] ∷ [ 8 ] ∷ []) ≡ [ 3 ] ∷ [ 4 ] ∷ [ 8 ] ∷ []
 test-filter2' = refl
 
 {-
@@ -299,7 +305,7 @@ test-filter2' = refl
 filter関数を使い、数値のリストを入力すると、そのうち偶数でなおかつ7より大きい要素だけを取り出すfilter_even_gt7関数を書きなさい。
 -}
 filter-even-gt7 : list ℕ → list ℕ
-filter-even-gt7 = filter (\n → even n ∧ ℕ-< 7 n)
+filter-even-gt7 = filter (λ n → even n ∧ ℕ-< 7 n)
   where
     ℕ-< : ℕ → ℕ → Bool
     ℕ-< _ 0 = false
@@ -328,5 +334,80 @@ partition p (x ∷ xs) with p x | partition p xs
 
 test-partition1 : partition odd (1 ∷ 2 ∷ 3 ∷ 4 ∷ 5 ∷ []) ≡ (1 ∷ 3 ∷ 5 ∷ [] , 2 ∷ 4 ∷ [])
 test-partition1 = refl
-test-partition2 : partition (\_ → false) (5 ∷ 9 ∷ 0 ∷ []) ≡ ([] , 5 ∷ 9 ∷ 0 ∷ [])
+test-partition2 : partition (λ _ → false) (5 ∷ 9 ∷ 0 ∷ []) ≡ ([] , 5 ∷ 9 ∷ 0 ∷ [])
 test-partition2 = refl
+
+map : ∀{x y} {X : Set x} {Y : Set y} → (X → Y) → list X → list Y
+map f [] = []
+map f (x ∷ xs) = f x ∷ map f xs
+
+test-map1 : map (_+_ 3) (2 ∷ 0 ∷ 2 ∷ []) ≡ 5 ∷ 3 ∷ 5 ∷ []
+test-map1 = refl
+test-map2 : map odd (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ false ∷ true ∷ false ∷ true ∷ []
+test-map2 = refl
+test-map3 : map (λ n → even n ∷ odd n ∷ []) (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ []
+test-map3 = refl
+
+{-
+練習問題: ★★★, optional (map_rev)
+
+mapとrevが可換であることを示しなさい。証明には補題をたてて証明する必要があるでしょう。
+-}
+++-map : ∀{x y} {X : Set x} {Y : Set y} →
+         (f : X → Y) → (l1 : list X) → (l2 : list X) →
+         map f (l1 ++ l2) ≡ map f l1 ++ map f l2
+++-map f [] ys = refl
+++-map f (x ∷ xs) ys = cong (_∷_ (f x)) (++-map f xs ys)
+
+map-rev : ∀{x y} {X : Set x} {Y : Set y} →
+          (f : X → Y) → (l : list X) →
+          map f (rev l) ≡ rev (map f l)
+map-rev f [] = refl
+map-rev f (x ∷ xs) =
+  begin
+     map f (rev (x ∷ xs))
+  ≡⟨ refl ⟩
+     map f (snoc (rev xs) x)
+  ≡⟨ cong (map f) (snoc-append (rev xs) x) ⟩
+     map f (rev xs ++ [ x ])
+  ≡⟨ ++-map f (rev xs) ([ x ]) ⟩
+     map f (rev xs) ++ f x ∷ []
+  ≡⟨ sym (snoc-append (map f (rev xs)) (f x)) ⟩
+     snoc (map f (rev xs)) (f x)
+  ≡⟨ cong (λ z → snoc z (f x)) (map-rev f xs) ⟩
+     rev (map f (x ∷ xs))
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+    snoc-append : ∀{x} {X : Set x} →
+                  (l : list X) → (n : X) →
+                  snoc l n ≡ l ++ [ n ]
+    snoc-append [] n = refl
+    snoc-append (x ∷ xs) n = cong (λ as → x ∷ as) (snoc-append xs n)
+
+{-
+練習問題: ★★, recommended (flat_map)
+
+map関数は、list Xからlist Yへのマップを、型X → Yの関数を使って実現しています。同じような関数flat_mapを定義しましょう。これはlist Xからlist Yへのマップですが、X → list Yとなる関数fを使用できます。このため、次のように要素ごとの関数fの結果を平坦化してやる必要があります。
+        flat_map (fun n => [n,n+1,n+2]) [1,5,10]
+      = [1, 2, 3, 5, 6, 7, 10, 11, 12].
+-}
+flat-map : ∀{x y} {X : Set x} {Y : Set y} →
+           (X → list Y) → list X → list Y
+flat-map f [] = []
+flat-map f (x ∷ xs) = f x ++ flat-map f xs
+
+test-flat-map1 : flat-map (λ n → n ∷ n ∷ n ∷ []) (1 ∷ 5 ∷ 4 ∷ []) ≡ 1 ∷ 1 ∷ 1 ∷ 5 ∷ 5 ∷ 5 ∷ 4 ∷ 4 ∷ 4 ∷ []
+test-flat-map1 = refl
+
+option-map : ∀{x y} {X : Set x} {Y : Set y} →
+             (X → Y) → option X → option Y
+option-map f None = None
+option-map f (Some x) = Some (f x)
+
+{-
+練習問題: ★★, optional (implicit_args)
+
+filterやmap関数を定義したり使ったりするケースでは、多くの場合暗黙的な型引数が使われます。暗黙の型引数定義に使われている中括弧を普通の括弧に置き換え、必要なところに型引数を明示的に書くようにして、それが正しいかどうかをCoqでチェックしなさい。
+-}
+-- 略

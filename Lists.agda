@@ -263,7 +263,7 @@ test-subset2 = refl
 count や add を使ったバッグに関する面白い定理書き、それを証明しなさい。この問題はいわゆる自由課題で、真になることがわかっていても、証明にはまだ習っていない技を使わなければならない定理を思いついてしまうこともあります。証明に行き詰まってしまったら気軽に質問してください。
 -}
 add-count-commute-count-inc : {n : ℕ} {xs : ℕ-bag} → count n (add n xs) ≡ 1 + count n xs
-add-count-commute-count-inc {n} {xs} = cong (\eq → (if eq then 1 else 0) + count n xs) (ℕ-eq-refl {n})
+add-count-commute-count-inc {n} {xs} = cong (λ eq → (if eq then 1 else 0) + count n xs) (ℕ-eq-refl {n})
 
 []-app : {l : ℕ-list} → [] ++ l ≡ l
 []-app = refl
@@ -274,11 +274,11 @@ tl-length-pred {x ∷ xs} = refl
 
 ++-assoc : {l1 l2 l3 : ℕ-list} → (l1 ++ l2) ++ l3 ≡ l1 ++ (l2 ++ l3)
 ++-assoc {[]} {ys} {zs} = refl
-++-assoc {x ∷ xs} {ys} {zs} = cong (\as → x ∷ as) (++-assoc {xs} {ys} {zs})
+++-assoc {x ∷ xs} {ys} {zs} = cong (λ as → x ∷ as) (++-assoc {xs} {ys} {zs})
 
 ++-length : {l1 l2 : ℕ-list} → length (l1 ++ l2) ≡ (length l1) + (length l2)
 ++-length {[]} {ys} = refl
-++-length {x ∷ xs} {ys} = cong (\a → 1 + a) (++-length {xs} {ys})
+++-length {x ∷ xs} {ys} = cong (λ a → 1 + a) (++-length {xs} {ys})
 
 snoc : ℕ-list → ℕ → ℕ-list
 snoc [] n = [ n ]
@@ -301,11 +301,11 @@ rev-length-firsttry {x ∷ xs} = ?
 
 length-snoc : {n : ℕ} {l : ℕ-list} → length (snoc l n) ≡ 1 + length l
 length-snoc {n} {[]} = refl
-length-snoc {n} {x ∷ xs} = cong (\a → 1 + a) (length-snoc {n} {xs})
+length-snoc {n} {x ∷ xs} = cong (λ a → 1 + a) (length-snoc {n} {xs})
 
 rev-length : {l : ℕ-list} → length (rev l) ≡ length l
 rev-length {[]} = refl
-rev-length {x ∷ xs} rewrite length-snoc {x} {rev xs} = cong (\a → 1 + a) (rev-length {xs})
+rev-length {x ∷ xs} rewrite length-snoc {x} {rev xs} = cong (λ a → 1 + a) (rev-length {xs})
 
 {-
 練習問題: ★★★, recommended (list_exercises)
@@ -314,15 +314,15 @@ rev-length {x ∷ xs} rewrite length-snoc {x} {rev xs} = cong (\a → 1 + a) (re
 -}
 app-[]-end : {l : ℕ-list} → l ++ [] ≡ l
 app-[]-end {[]} = refl
-app-[]-end {x ∷ xs} = cong (\as → x ∷ as) (app-[]-end {xs})
+app-[]-end {x ∷ xs} = cong (λ as → x ∷ as) (app-[]-end {xs})
 
 rev-snoc-commute-rev-cons : {n : ℕ} {ls : ℕ-list} → rev (snoc ls n) ≡ n ∷ rev ls
 rev-snoc-commute-rev-cons {n} {[]} = refl
-rev-snoc-commute-rev-cons {n} {x ∷ xs} = cong (\as → snoc as x) (rev-snoc-commute-rev-cons {n} {xs})
+rev-snoc-commute-rev-cons {n} {x ∷ xs} = cong (λ as → snoc as x) (rev-snoc-commute-rev-cons {n} {xs})
 
 rev-involutive : {l : ℕ-list} → rev (rev l) ≡ l
 rev-involutive {[]} = refl
-rev-involutive {x ∷ xs} rewrite rev-snoc-commute-rev-cons {x} {rev xs} = cong (\as → x ∷ as) (rev-involutive {xs})
+rev-involutive {x ∷ xs} rewrite rev-snoc-commute-rev-cons {x} {rev xs} = cong (λ as → x ∷ as) (rev-involutive {xs})
 
 ++-rev : {l1 l2 : ℕ-list} → rev (l1 ++ l2) ≡ rev l2 ++ rev l1
 ++-rev {[]} {ys} = sym (app-[]-end {rev ys})
@@ -331,7 +331,7 @@ rev-involutive {x ∷ xs} rewrite rev-snoc-commute-rev-cons {x} {rev xs} = cong 
      rev (x ∷ xs ++ ys)
   ≡⟨ refl ⟩
      snoc (rev (xs ++ ys)) x
-  ≡⟨ cong (\z → snoc z x) (++-rev {xs})⟩
+  ≡⟨ cong (λ z → snoc z x) (++-rev {xs})⟩
      snoc (rev ys ++ rev xs) x
   ≡⟨ ++-snoc {x} {rev ys} {rev xs} ⟩
      rev ys ++ snoc (rev xs) x
@@ -342,7 +342,7 @@ rev-involutive {x ∷ xs} rewrite rev-snoc-commute-rev-cons {x} {rev xs} = cong 
     open Relation.Binary.PropositionalEquality.≡-Reasoning
     ++-snoc : {n : ℕ} {l1 l2 : ℕ-list} → snoc (l1 ++ l2) n ≡ l1 ++ snoc l2 n
     ++-snoc {n} {[]} {ys} = refl
-    ++-snoc {n} {x ∷ xs} {ys} = cong (\as → x ∷ as) (++-snoc {n} {xs} {ys})
+    ++-snoc {n} {x ∷ xs} {ys} = cong (λ as → x ∷ as) (++-snoc {n} {xs} {ys})
 
 {-
 次の問題には簡単な解法があります。こんがらがってしまったようであれば、少し戻って単純な方法を探してみましょう。
@@ -352,7 +352,7 @@ app-ass4 {l1} {l2} {l3} {l4} = sym (trans (++-assoc {l1 ++ l2} {l3} {l4}) (++-as
 
 snoc-append : {l : ℕ-list} {n : ℕ} → snoc l n ≡ l ++ [ n ]
 snoc-append {[]} = refl
-snoc-append {x ∷ xs} = cong (\as → x ∷ as) (snoc-append {xs})
+snoc-append {x ∷ xs} = cong (λ as → x ∷ as) (snoc-append {xs})
 
 {-
 前に書いた nonzeros 関数に関する練習問題です。
@@ -360,7 +360,7 @@ snoc-append {x ∷ xs} = cong (\as → x ∷ as) (snoc-append {xs})
 nonzeros-length : {l1 l2 : ℕ-list} → nonzeros (l1 ++ l2) ≡ (nonzeros l1) ++ (nonzeros l2)
 nonzeros-length {[]} {ys} = cong nonzeros ([]-app {ys})
 nonzeros-length {0 ∷ xs} {ys} = nonzeros-length {xs} {ys}
-nonzeros-length {suc x ∷ xs} {ys} = cong (\as → suc x ∷ as) (nonzeros-length {xs} {ys})
+nonzeros-length {suc x ∷ xs} {ys} = cong (λ as → suc x ∷ as) (nonzeros-length {xs} {ys})
 
 {-
 練習問題: ★★, recommended (list_design)
@@ -498,7 +498,7 @@ test-ℕ-list-eq3 = refl
      true
   ≡⟨ refl ⟩
      true ∧ true
-  ≡⟨ sym (cong (\a → a ∧ true) (ℕ-eq-refl {x})) ⟩
+  ≡⟨ sym (cong (λ a → a ∧ true) (ℕ-eq-refl {x})) ⟩
      ℕ-eq x x ∧ true
   ≡⟨ cong (_∧_ (ℕ-eq x x)) (ℕ-list-eq-refl {xs}) ⟩
      ℕ-eq x x ∧ ℕ-list-eq xs xs
@@ -510,7 +510,7 @@ test-ℕ-list-eq3 = refl
 
 
 silly1 : {n m o p : ℕ} → n ≡ m → n ∷ [ o ] ≡ n ∷ [ p ] → n ∷ [ o ] ≡ m ∷ [ p ]
-silly1 {n} {m} {o} {p} eq1 eq2 = trans eq2 (cong (\z → z ∷ [ p ]) eq1)
+silly1 {n} {m} {o} {p} eq1 eq2 = trans eq2 (cong (λ z → z ∷ [ p ]) eq1)
 
 silly2 : {n m o p : ℕ} → n ≡ m → ({q r : ℕ} → q ≡ r → q ∷ [ o ] ≡ r ∷ [ p ]) → n ∷ [ o ] ≡ m ∷ [ p ]
 silly2 {n} {m} eq1 eq2 = eq2 {n} {m} eq1
@@ -593,10 +593,10 @@ find key (ℕ-record k v d) = if ℕ-eq key k then Some v else find key d
 練習問題: ★ (dictionary_invariant1)
 -}
 dictionary-invariant1 : {d : ℕ-dict} {k v : ℕ} → find k (insert k v d) ≡ Some v
-dictionary-invariant1 {d} {k} {v} = cong (\a → if a then Some v else find k d) (ℕ-eq-refl {k})
+dictionary-invariant1 {d} {k} {v} = cong (λ a → if a then Some v else find k d) (ℕ-eq-refl {k})
 
 {-
 練習問題: ★ (dictionary_invariant2)
 -}
 dictionary-invariant2 : {d : ℕ-dict} {m n o : ℕ} → ℕ-eq m n ≡ false → find m d ≡ find m (insert n o d)
-dictionary-invariant2 {d} {m} {n} {o} eq = cong (\a → if a then Some o else find m d) (sym eq)
+dictionary-invariant2 {d} {m} {n} {o} eq = cong (λ a → if a then Some o else find m d) (sym eq)

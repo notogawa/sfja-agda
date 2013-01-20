@@ -309,7 +309,7 @@ plus-id-exercise : {n m o : Nat} → n ≡ m → m ≡ o → n + m ≡ m + o
 plus-id-exercise {n} {m} {o} = cong₂ (_+_) {n} {m} {m} {o}
 
 mult-zero-plus : {n m : Nat} → (0 + n) * m ≡ n * m
-mult-zero-plus {n} {m} = cong (\a → a * m) (O+n≡n {n})
+mult-zero-plus {n} {m} = cong (λ a → a * m) (O+n≡n {n})
 -- mult-zero-plus = refl -- でもいいけど
 
 {-
@@ -384,7 +384,7 @@ double (S n) = S (S (double n))
 -}
 double-plus : {n : Nat} → double n ≡ n + n
 double-plus {0} = refl
-double-plus {S n} = trans (cong (\x → S (S x)) (double-plus {n})) (cong S (plus-n-Sm {n} {n}))
+double-plus {S n} = trans (cong (λ x → S (S x)) (double-plus {n})) (cong S (plus-n-Sm {n} {n}))
 
 {-
 練習問題: ★ (destruct-induction)
@@ -427,13 +427,13 @@ beq-nat-refl {S n} = beq-nat-refl {n}
 
 
 mult-zero-plus' : {n m : Nat} → (0 + n) * m ≡ n * m
-mult-zero-plus' {n} {m} = cong (\a → a * m) assert
+mult-zero-plus' {n} {m} = cong (λ a → a * m) assert
   where -- assert相当ならwhereかなぁ?
     assert : 0 + n ≡ n
     assert = refl
 
 plus-rearrange : {n m p q : Nat} → (n + m) + (p + q) ≡ (m + n) + (p + q)
-plus-rearrange {n} {m} {p} {q} = cong (\a → a + (p + q)) assert
+plus-rearrange {n} {m} {p} {q} = cong (λ a → a + (p + q)) assert
   where
     assert : n + m ≡ m + n
     assert = plus-comm {n} {m}
@@ -449,7 +449,7 @@ plus-swap {n} {m} {p} = trans (trans assert1 assert2) assert3
     assert1 : n + (m + p) ≡ (n + m) + p
     assert1 = plus-assoc {n} {m} {p}
     assert2 : (n + m) + p ≡ (m + n) + p
-    assert2 = cong (\a → a + p) (plus-comm {n} {m})
+    assert2 = cong (λ a → a + p) (plus-comm {n} {m})
     assert3 : (m + n) + p ≡ m + (n + p)
     assert3 = sym (plus-assoc {m} {n} {p})
 
@@ -461,7 +461,7 @@ plus-swap' {n} {m} {p} =
      n + (m + p)
   ≡⟨ plus-assoc {n} {m} {p} ⟩
      (n + m) + p
-  ≡⟨ cong (\a → a + p) (plus-comm {n} {m}) ⟩
+  ≡⟨ cong (λ a → a + p) (plus-comm {n} {m}) ⟩
      (m + n) + p
   ≡⟨ sym (plus-assoc {m} {n} {p}) ⟩
      m + (n + p)
@@ -474,7 +474,7 @@ plus-swap' {n} {m} {p} =
 -}
 mult-comm : {m n : Nat} → m * n ≡ n * m
 mult-comm {0} {n} = trans (0*l≡0 {n}) (sym (n*O≡O {n}))
-mult-comm {S m} {n} = trans (cong (\a → n + a) (mult-comm {m} {n})) (mult-one-plus' {n} {m})
+mult-comm {S m} {n} = trans (cong (λ a → n + a) (mult-comm {m} {n})) (mult-one-plus' {n} {m})
   where
     mult-one-plus' : {n m : Nat} → n + n * m ≡ n * (1 + m)
     mult-one-plus' {0} {m} = refl
@@ -483,11 +483,11 @@ mult-comm {S m} {n} = trans (cong (\a → n + a) (mult-comm {m} {n})) (mult-one-
         assert1' : (1 + n) + (m + n * m) ≡ m + (1 + n + n * m)
         assert1' = plus-swap {1 + n} {m}
         assert2' : m + (1 + n + n * m) ≡ m + (1 + n * (1 + m))
-        assert2' = cong (\a → m + (1 + a)) (mult-one-plus' {n} {m})
+        assert2' = cong (λ a → m + (1 + a)) (mult-one-plus' {n} {m})
         assert3' : m + (1 + n * (1 + m)) ≡ (m + 1) + n * (1 + m)
         assert3' = plus-assoc {m} {1} {n * (1 + m)}
         assert4' : (m + 1) + n * (1 + m) ≡ (1 + m) + n * (1 + m)
-        assert4' = cong (\a → a + n * (1 + m)) (plus-comm {m} {1})
+        assert4' = cong (λ a → a + n * (1 + m)) (plus-comm {m} {1})
     -- ≡-Reasoningで
     mult-one-plus'' : {n m : Nat} → n + n * m ≡ n * (1 + m)
     mult-one-plus'' {0} {m} = refl
@@ -502,11 +502,11 @@ mult-comm {S m} {n} = trans (cong (\a → n + a) (mult-comm {m} {n})) (mult-one-
         m + ((1 + n) + n * m)
       ≡⟨ refl ⟩
         m + (1 + (n + n * m))
-      ≡⟨ cong (\a → m + (1 + a)) (mult-one-plus' {n} {m}) ⟩
+      ≡⟨ cong (λ a → m + (1 + a)) (mult-one-plus' {n} {m}) ⟩
         m + (1 + n * (1 + m))
       ≡⟨ plus-assoc {m} {1} {n * (1 + m)} ⟩
         (m + 1) + n * (1 + m)
-      ≡⟨ cong (\a → a + n * (1 + m)) (plus-comm {m} {1}) ⟩
+      ≡⟨ cong (λ a → a + n * (1 + m)) (plus-comm {m} {1}) ⟩
         (1 + m) + n * (1 + m)
       ≡⟨ refl ⟩
         S n * (1 + m)
@@ -556,11 +556,11 @@ all3-spec {False} {False} = refl
 
 mult-plus-distr-r : {n m p : Nat} → (n + m) * p ≡ (n * p) + (m * p)
 mult-plus-distr-r {0} {m} {p} = refl
-mult-plus-distr-r {S n} {m} {p} = trans (cong (\a → p + a) (mult-plus-distr-r {n} {m} {p})) (plus-assoc {p} {n * p} {m * p})
+mult-plus-distr-r {S n} {m} {p} = trans (cong (λ a → p + a) (mult-plus-distr-r {n} {m} {p})) (plus-assoc {p} {n * p} {m * p})
 
 mult-assoc : {n m p : Nat} → n * (m * p) ≡ (n * m) * p
 mult-assoc {0} {m} {p} = refl
-mult-assoc {S n} {m} {p} = trans (cong (\a → m * p + a) (mult-assoc {n} {m} {p})) (sym (mult-plus-distr-r {m} {n * m} {p}))
+mult-assoc {S n} {m} {p} = trans (cong (λ a → m * p + a) (mult-assoc {n} {m} {p})) (sym (mult-plus-distr-r {m} {n * m} {p}))
 
 {-
 練習問題: ★★, optional (plus_swap')
@@ -644,7 +644,7 @@ normalize : Bin → Bin
 normalize n = nat→bin (bin→nat n)
 
 normalize-idempotent : {n : Bin} → normalize (normalize n) ≡ normalize n
-normalize-idempotent {n} = cong (\a → nat→bin a) (nat→bin→nat {bin→nat n})
+normalize-idempotent {n} = cong (λ a → nat→bin a) (nat→bin→nat {bin→nat n})
 
 {-
 練習問題: ★★, optional (decreasing)
