@@ -2,8 +2,8 @@ module Poly where
 
 import Level
 open import Data.Bool
-open import Data.Nat
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans; subst)
+open import Data.Nat hiding (fold)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst)
 
 data Bool-list : Set where
   Bool-nil : Bool-list
@@ -178,6 +178,16 @@ data option {x} (X : Set x) : Set x where
 ℕ-eq zero (suc m) = false
 ℕ-eq (suc n) zero = false
 ℕ-eq (suc n) (suc m) = ℕ-eq n m
+
+ℕ-eq-refl : (n : ℕ) → ℕ-eq n n ≡ true
+ℕ-eq-refl 0 = refl
+ℕ-eq-refl (suc n) = ℕ-eq-refl n
+
+ℕ-eq-sym : (n m : ℕ) → ℕ-eq n m ≡ ℕ-eq m n
+ℕ-eq-sym 0 0 = refl
+ℕ-eq-sym 0 (suc m) = refl
+ℕ-eq-sym (suc n) 0 = refl
+ℕ-eq-sym (suc n) (suc m) = ℕ-eq-sym n m
 
 index : ∀{x} {X : Set x} → ℕ → list X → option X
 index n [] = None
@@ -411,3 +421,98 @@ option-map f (Some x) = Some (f x)
 filterやmap関数を定義したり使ったりするケースでは、多くの場合暗黙的な型引数が使われます。暗黙の型引数定義に使われている中括弧を普通の括弧に置き換え、必要なところに型引数を明示的に書くようにして、それが正しいかどうかをCoqでチェックしなさい。
 -}
 -- 略
+
+fold : ∀{x y} → {X : Set x} {Y : Set y} →
+       (X → Y → Y) → list X → Y → Y
+fold f [] e = e
+fold f (x ∷ xs) e = f x (fold f xs e)
+
+{-
+Main> :typeOf fold (_+_)
+list ℕ → ℕ → ℕ
+-}
+
+fold-example1 : fold (_*_) (1 ∷ 2 ∷ 3 ∷ 4 ∷ []) 1 ≡ 24
+fold-example1 = refl
+fold-example2 : fold (_∧_) (true ∷ true ∷ false ∷ true ∷ []) true ≡ false
+fold-example2 = refl
+fold-example3 : fold (_++_) ([ 1 ] ∷ [] ∷ (2 ∷ [ 3 ]) ∷ [ 4 ] ∷ []) [] ≡ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
+fold-example3 = refl
+
+{-
+練習問題: ★, optional (fold_types_different)
+
+fold関数がXとY二つの型引数をとっていて、関数fが型Xを引数にとり型Yを返すようになっていることに注目してください。XとYが別々の型となっていることで、どのような場合に便利であるかを考えてください。
+-}
+-- 略
+
+constfun : ∀{x} {X : Set x} → X → ℕ → X
+constfun x = λ _ → x
+
+ftrue = constfun true
+
+constfun-example1 : ftrue 0 ≡ true
+constfun-example1 = refl
+constfun-example2 : constfun 5 99 ≡ 5
+constfun-example2 = refl
+
+override : ∀{x} {X : Set x} → (ℕ → X) → ℕ → X → ℕ → X
+override f k x = λ k' → if ℕ-eq k k' then x else f k'
+
+fmostlytrue = override (override ftrue 1 false) 3 false
+
+override-example1 : fmostlytrue 0 ≡ true
+override-example1 = refl
+override-example2 : fmostlytrue 1 ≡ false
+override-example2 = refl
+override-example3 : fmostlytrue 2 ≡ true
+override-example3 = refl
+override-example4 : fmostlytrue 3 ≡ false
+override-example4 = refl
+
+{-
+練習問題: ★ (override_example)
+
+次の証明にとりかかる前に、あなたがこの証明の意味することを理解しているか確認するため、証明内容を別の言葉で言い換えてください。証明自体は単純なものです。
+-}
+-- "「3のときtrue，それ以外のときbとなる関数」に2を適用したらbになることを示せ"
+override-example : (b : Bool) → override (constfun b) 3 true 2 ≡ b
+override-example false = refl
+override-example true = refl
+
+-- unfoldなにそれおいしいの？
+unfold-example : {m n : ℕ} → 3 + n ≡ m → plus3 n + 1 ≡ m + 1
+unfold-example eq = cong (λ a → a + 1) eq
+
+-- tacticなくても元々ﾃﾞｷﾙｩｰ
+override-eq : ∀{x} {X : Set x} →
+              (x : X) → (k : ℕ) → (f : ℕ → X) →
+              override f k x k ≡ x
+override-eq x 0 f = refl
+override-eq x (suc k) f = cong (λ a → if a then x else f (suc k)) (ℕ-eq-refl k)
+
+{-
+練習問題: ★★ (override_neq)
+-}
+override-neq : ∀{x} {X : Set x} →
+               (x1 x2 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
+               f k1 ≡ x1 → ℕ-eq k1 k2 ≡ false → override f k2 x2 k1 ≡ x1
+override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2 =
+  begin
+     override f k2 x2 k1
+  ≡⟨ refl ⟩
+     (if ℕ-eq k2 k1 then x2 else f k1)
+  ≡⟨ cong (λ a → if a then x2 else f k1) (ℕ-eq-sym k2 k1) ⟩
+     (if ℕ-eq k1 k2 then x2 else f k1)
+  ≡⟨ cong (λ a → if a then x2 else f k1) k1≠k2 ⟩
+     (if false then x2 else f k1)
+  ≡⟨ fk1≡x1 ⟩
+     x1
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+
+-- まぁ，仮定をバッファしておく所があるわけじゃないのでinversion的なものは無いよな…
+-- てことはデストラクトに相当する操作でcongするのが定石？
+eq-add-S : (n m : ℕ) → suc n ≡ suc m → n ≡ m
+eq-add-S n m = cong pred
