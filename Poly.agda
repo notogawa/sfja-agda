@@ -512,7 +512,111 @@ override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2 =
   where
     open Relation.Binary.PropositionalEquality.≡-Reasoning
 
+
 -- まぁ，仮定をバッファしておく所があるわけじゃないのでinversion的なものは無いよな…
 -- てことはデストラクトに相当する操作でcongするのが定石？
-eq-add-S : (n m : ℕ) → suc n ≡ suc m → n ≡ m
-eq-add-S n m = cong pred
+
+-- というか… dot pattern でいいのか．
+eq-add-S : {n m : ℕ} → suc n ≡ suc m → n ≡ m
+eq-add-S {.m} {m} refl = refl
+
+silly4 : {n m : ℕ} →  [ n ] ≡ [ m ] → n ≡ m
+silly4 {.m} {m} refl = refl
+
+silly5 : {n m o : ℕ} → n ∷ [ m ] ≡ o ∷ [ o ] → [ n ] ≡ [ m ]
+silly5 {.o} {.o} {o} refl = refl
+
+{-
+練習問題: ★ (sillyex1)
+-}
+sillyex1 : ∀{x} {X : Set x} → (x y z : X) → (l j : list X) →
+           x ∷ y ∷ l ≡ z ∷ j → y ∷ l ≡ x ∷ j → x ≡ y
+sillyex1 x y z l j eq1 eq2 = sym (assert y x l j eq2)
+  where
+    assert : ∀{x} {X : Set x} → (x y : X) → (xs ys : list X) →
+              x ∷ xs ≡ y ∷ ys → x ≡ y
+    assert .y y .ys ys refl = refl
+
+silly6 : (n : ℕ) → suc n ≡ 0 → 2 + 2 ≡ 5
+silly6 n ()
+
+silly7 : (n m : ℕ) → false ≡ true → [ n ] ≡ [ m ]
+silly7 n m ()
+
+{-
+練習問題: ★ (sillyex2)
+-}
+sillyex2 : ∀{x} {X : Set x} → (x y z : X) → (l j : list X) →
+           x ∷ y ∷ l ≡ [] → y ∷ l ≡ z ∷ j → x ≡ z
+sillyex2 _ _ _ _ _ ()
+
+eq-remove-S : ∀{n m} → n ≡ m → suc n ≡ suc m
+eq-remove-S {.m} {m} refl = refl
+
+ℕ-eq-≡ : ∀{n m} → true ≡ ℕ-eq n m → n ≡ m
+ℕ-eq-≡ {0} {0} refl = refl
+ℕ-eq-≡ {0} {suc _} ()
+ℕ-eq-≡ {suc _} {0} ()
+ℕ-eq-≡ {suc n} {suc m} eq = cong suc (ℕ-eq-≡ {n} {m} eq)
+
+{-
+練習問題: ★★ (beq_nat_eq_informal)
+
+beq_nat_eqの、非形式的な証明を示しなさい。
+-}
+-- 略
+
+
+{-
+練習問題: ★★★ (beq_nat_eq')
+
+beq_nat_eqは、mについて帰納法をつかうことで証明することができました。しかし我々は、もう少し変数を導入する順序に注意を払うべきです。なぜなら、我々は一般に、十分な帰納法の仮定を得ているからです。このことを次に示します。次の証明を完成させなさい。この練習問題の効果を最大にするため、とりあえずは先にやった証明を見ないで取り組んでください。
+-}
+-- どういうことだってばよ？
+ℕ-eq-≡' : ∀{m n} → ℕ-eq n m ≡ true → n ≡ m
+ℕ-eq-≡' {0} {0} refl = refl
+ℕ-eq-≡' {0} {suc _} ()
+ℕ-eq-≡' {suc _} {0} ()
+ℕ-eq-≡' {suc m} {suc n} eq = cong suc (ℕ-eq-≡' {m} {n} eq)
+
+length-snoc' : ∀{x} {X : Set x} →
+               (v : X) → (l : list X) (n : ℕ) →
+               length l ≡ n → length (snoc l v) ≡ suc n
+length-snoc' v [] 0 eq = refl
+length-snoc' v [] (suc _) ()
+length-snoc' v (x ∷ xs) 0 ()
+length-snoc' v (x ∷ xs) (suc n) eq =
+  begin
+     length (snoc (x ∷ xs) v)
+  ≡⟨ refl ⟩
+     suc (length (snoc xs v))
+  ≡⟨ cong suc (length-snoc' v xs n (eq-add-S {length xs} {n} eq)) ⟩
+     suc (suc n)
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+
+{-
+練習問題: ★★, optional (practice)
+
+同じところに分類され、相互に関連するような、自明でもないが複雑というほどでもない証明をいくつか練習問題としましょう。このうち、いくつかは過去のレクチャーや練習問題に出てきた補題を使用します。
+-}
+ℕ-eq-0-l : ∀{n} → true ≡ ℕ-eq 0 n → 0 ≡ n
+ℕ-eq-0-l = ℕ-eq-≡ {0}
+
+ℕ-eq-0-r : ∀{n} → true ≡ ℕ-eq n 0 → 0 ≡ n
+ℕ-eq-0-r {n} eq = sym (ℕ-eq-≡ {n} {0} eq)
+
+double : ℕ → ℕ
+double zero = zero
+double (suc n) = suc (suc (double n))
+
+double-injective : ∀{n m} → double n ≡ double m → n ≡ m
+double-injective {0} {0} refl = refl
+double-injective {0} {suc _} ()
+double-injective {suc _} {0} ()
+double-injective {suc n} {suc m} eq = cong suc (ind (drop-suc2 (drop-suc1 eq)))
+  where
+    ind = double-injective {n} {m}
+    drop-suc1 = eq-add-S {suc (double n)} {suc (double m)}
+    drop-suc2 = eq-add-S {double n} {double m}
