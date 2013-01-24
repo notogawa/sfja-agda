@@ -1,9 +1,10 @@
 module Poly where
 
 import Level
+open import Function
 open import Data.Bool
 open import Data.Nat hiding (fold)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst₂)
 
 data Bool-list : Set where
   Bool-nil : Bool-list
@@ -126,10 +127,10 @@ fst (x , y) = x
 snd : ∀{x y} {X : Set x} {Y : Set y} → X × Y → Y
 snd (x , y) = y
 
-combine : ∀{x y} {X : Set x} {Y : Set y} → list X → list Y → list (X × Y)
-combine [] _ = []
-combine _ [] = []
-combine (x ∷ xs) (y ∷ ys) = (x , y) ∷ combine xs ys
+combine : ∀{x y} {X : Set x} {Y : Set y} → list X × list Y → list (X × Y)
+combine ([] , _) = []
+combine (_ , []) = []
+combine (x ∷ xs , y ∷ ys) = (x , y) ∷ combine (xs , ys)
 
 {-
 練習問題: ★ (combine_checks)
@@ -142,7 +143,7 @@ combine (x ∷ xs) (y ∷ ys) = (x , y) ∷ combine xs ys
 {-
 Main> :typeOf combine
 {x y : Level.Level} {X : Set x} {Y : Set y} →
-list X → list Y → list (X × Y)
+list X × list Y → list (X × Y)
 -}
 {-
   それでは
@@ -152,7 +153,7 @@ list X → list Y → list (X × Y)
 -}
 -- [(1,false),(2,false)]
 {-
-Main> combine (1 ∷ 2 ∷ []) (false ∷ false ∷ true ∷ true ∷ [])
+Main> combine (1 ∷ 2 ∷ [] , false ∷ false ∷ true ∷ true ∷ [])
 (1 , false) ∷ (2 , false) ∷ []
 -}
 
@@ -163,11 +164,13 @@ split関数はcombineと全く逆で、ペアのリストを引数に受け取�
 -}
 -- 次の段落のコメント？
 -- 続くテスト？
+prod-map : ∀{x y} {X : Set x} {Y : Set y} →
+           (list X → list X) → (list Y → list Y) → list X × list Y → list X × list Y
+prod-map f g (xs , ys) = (f xs , g ys)
+
 split : ∀{x y} {X : Set x} {Y : Set y} → list (X × Y) → list X × list Y
 split [] = ([] , [])
-split ((x , y) ∷ xys) with split xys
-... | (xs , ys) = (x ∷ xs , y ∷ ys)
-
+split ((x , y) ∷ xys) = prod-map (_∷_ x) (_∷_ y) (split xys)
 
 data option {x} (X : Set x) : Set x where
   Some : X → option X
@@ -217,7 +220,7 @@ test-hd-opt2 = refl
 
 
 doit3times : ∀{x} {X : Set x} → (X → X) → X → X
-doit3times f n = f (f (f n))
+doit3times f = f ∘ f ∘ f
 
 test-doit3times : doit3times (λ a → a ∸ 2) 9 ≡ 3
 test-doit3times = refl
@@ -585,16 +588,7 @@ length-snoc' : ∀{x} {X : Set x} →
 length-snoc' v [] 0 eq = refl
 length-snoc' v [] (suc _) ()
 length-snoc' v (x ∷ xs) 0 ()
-length-snoc' v (x ∷ xs) (suc n) eq =
-  begin
-     length (snoc (x ∷ xs) v)
-  ≡⟨ refl ⟩
-     suc (length (snoc xs v))
-  ≡⟨ cong suc (length-snoc' v xs n (eq-add-S {length xs} {n} eq)) ⟩
-     suc (suc n)
-  ∎
-  where
-    open Relation.Binary.PropositionalEquality.≡-Reasoning
+length-snoc' v (x ∷ xs) (suc n) eq = cong suc (length-snoc' v xs n (eq-add-S {length xs} {n} eq))
 
 {-
 練習問題: ★★, optional (practice)
@@ -609,14 +603,133 @@ length-snoc' v (x ∷ xs) (suc n) eq =
 
 double : ℕ → ℕ
 double zero = zero
-double (suc n) = suc (suc (double n))
+double (suc n) = suc $ suc $ double n
 
 double-injective : ∀{n m} → double n ≡ double m → n ≡ m
 double-injective {0} {0} refl = refl
 double-injective {0} {suc _} ()
 double-injective {suc _} {0} ()
-double-injective {suc n} {suc m} eq = cong suc (ind (drop-suc2 (drop-suc1 eq)))
+double-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 eq
   where
     ind = double-injective {n} {m}
     drop-suc1 = eq-add-S {suc (double n)} {suc (double m)}
     drop-suc2 = eq-add-S {double n} {double m}
+
+-- ?
+S-inj : (n m : ℕ) → (b : Bool) → ℕ-eq (suc n) (suc m) ≡ b → ℕ-eq n m ≡ b
+S-inj n m b eq = eq
+
+-- 何?
+silly3' : (n : ℕ) → (ℕ-eq n 5 ≡ true → ℕ-eq (suc (suc n)) 7 ≡ true) →
+          true ≡ ℕ-eq n 5 → true ≡ ℕ-eq (suc (suc n)) 7
+silly3' n _ eq = eq
+
+{-
+練習問題: ★★★, recommended (plus_n_n_injective)
+
+先に述べた"in"を使って次の証明をしなさい。
+-}
++-assoc : {n m p : ℕ} → n + (m + p) ≡ (n + m) + p
++-assoc {0} = refl
++-assoc {suc n} = cong suc (+-assoc {n})
+
+0+n≡n : {n : ℕ} → 0 + n ≡ n
+0+n≡n = refl
+
+n+0≡n : {n : ℕ} → n + 0 ≡ n
+n+0≡n {0} = refl
+n+0≡n {suc n} = cong suc (n+0≡n {n})
+
++-comm : {n m : ℕ} → n + m ≡ m + n
++-comm {0}     {m} = 0+n≡n {m} ⟨ trans ⟩ sym (n+0≡n {m})
++-comm {suc n} {m} = cong suc (+-comm {n} {m}) ⟨ trans ⟩ Sn+m≡n+Sm {m} {n}
+  where
+    Sn+m≡n+Sm : {n m : ℕ} → suc (n + m) ≡ n + (suc m)
+    Sn+m≡n+Sm {0}   {m} = refl
+    Sn+m≡n+Sm {suc n} {m} = cong suc (Sn+m≡n+Sm {n} {m})
+
+Sn+Sn≡SSn+n : ∀{n} → suc n + suc n ≡ suc (suc (n + n))
+Sn+Sn≡SSn+n {n} = +-assoc {suc n} {1} {n} ⟨ trans ⟩ cong (λ a → suc (a + n)) (+-comm {n} {1})
+
+n+n-injective : {n m : ℕ} → n + n ≡ m + m → n ≡ m
+n+n-injective {0} {0} refl = refl
+n+n-injective {0} {suc _} ()
+n+n-injective {suc _} {0} ()
+n+n-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 $ toSS $ eq
+  where
+    ind = n+n-injective {n} {m}
+    drop-suc1 = eq-add-S {suc (n + n)} {suc (m + m)}
+    drop-suc2 = eq-add-S {n + n} {m + m}
+    toSS = subst₂ (_≡_) (Sn+Sn≡SSn+n {n}) (Sn+Sn≡SSn+n {m})
+
+
+sillyfun : ℕ → Bool
+sillyfun n = if ℕ-eq n 3
+               then false
+               else if ℕ-eq n 5
+                      then false
+                      else false
+
+sillyfun-false : ∀{n} → sillyfun n ≡ false
+sillyfun-false {n} with ℕ-eq n 3 | ℕ-eq n 5
+... | true | _ = refl
+... | false | true = refl
+... | false | false = refl
+
+{-
+練習問題: ★ (override_shadow)
+-}
+override-shadow : ∀{x} {X : Set x} → (x1 x2 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
+                  (override (override f k1 x2) k1 x1) k2 ≡ (override f k1 x1) k2
+override-shadow x1 x2 k1 k2 f with ℕ-eq k1 k2
+... | true = refl
+... | false = refl
+
+{-
+練習問題: ★★★, recommended (combine_split)
+-}
+combine-split : ∀{x y} {X : Set x} {Y : Set y} → (xys : list (X × Y)) →
+                combine (split xys) ≡ xys
+combine-split [] = refl
+combine-split ((x , y) ∷ xys) =
+  begin
+     combine (split ((x , y) ∷ xys))
+  ≡⟨ refl ⟩
+     combine (prod-map (_∷_ x) (_∷_ y) (split xys))
+  ≡⟨ combine-prod-map x y (split xys) ⟩
+     (x , y) ∷ combine (split xys)
+  ≡⟨ cong (_∷_ (x , y)) (combine-split xys) ⟩
+     (x , y) ∷ xys
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+    combine-prod-map : ∀{x y} {X : Set x} {Y : Set y} →
+                       (x : X) → (y : Y) → (xsys : list X × list Y) →
+                       combine (prod-map (_∷_ x) (_∷_ y) xsys) ≡ (x , y) ∷ combine xsys
+    combine-prod-map x y (xs , ys) = refl
+
+{-
+練習問題: ★★★, optional (split_combine)
+
+思考練習: 我々はすでに、全ての型のリストのペアでcombineがsplitの逆関数であることを証明しました。ではその逆の「splitはcombineの逆関数である」を示すことはできるでしょうか？
+
+ヒント: split combine l1 l2 = (l1,l2)がtrueとなるl1、l2の条件は何でしょう？
+-}
+-- 長さの同じリストのときのみ可能
+
+{-
+この定理をCoqで証明しなさい（なるべくintrosを使うタイミングを遅らせ、帰納法の仮定を一般化させておくといいでしょう。
+-}
+split-combine : ∀{x y} {X : Set x} {Y : Set y} → (xsys : list X × list Y) →
+                length (fst xsys) ≡ length (snd xsys) → split (combine xsys) ≡ xsys
+split-combine ([] , []) refl = refl
+split-combine ([] , y ∷ ys) ()
+split-combine (x ∷ xs , []) ()
+split-combine (x ∷ xs , y ∷ ys) eq = cong pm (split-combine (xs , ys) (tail-length-equiv eq))
+  where
+    ∷→suc : ∀{x} {X : Set x} → (x : X) → (xs : list X) → length (x ∷ xs) ≡ suc (length xs)
+    ∷→suc x xs = refl
+    ∷≡∷→suc≡suc = subst₂ (_≡_) (∷→suc x xs) (∷→suc y ys)
+    tail-length-equiv : length (x ∷ xs) ≡ length (y ∷ ys) → length xs ≡ length ys
+    tail-length-equiv eq = eq-add-S {length xs} {length ys} (∷≡∷→suc≡suc eq)
+    pm = prod-map (_∷_ x) (_∷_ y)
