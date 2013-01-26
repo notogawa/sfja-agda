@@ -804,3 +804,76 @@ filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
               test x ≡ true
     assert2 (inj₂ (eq1 , eq2)) = filter-exercise test x ys lf eq2
     assert2 (inj₁ (eq1 , eq2)) = sym (eq1 ⟨ trans ⟩ cong test (head-inversion y x (filter test ys) lf eq2))
+
+
+-- おぁ？trans解禁しちゃってるから要領も何もだな
+trans-eq-example : {a b c d e f : ℕ} →
+                   a ∷ [ b ] ≡ c ∷ [ d ] → c ∷ [ d ] ≡ e ∷ [ f ] → a ∷ [ b ] ≡ e ∷ [ f ]
+trans-eq-example = trans
+
+trans-≡ : ∀{x} {X : Set x} {n m o : X} → n ≡ m → m ≡ o → n ≡ o
+trans-≡ = trans
+
+{-
+練習問題: ★★★, recommended (apply_exercises)
+-}
+minustwo : ℕ → ℕ
+minustwo 0 = 0
+minustwo 1 = 0
+minustwo (suc (suc n)) = n
+
+trans-≡-exercise : {n m o p : ℕ} →
+                   m ≡ minustwo o → (n + p) ≡ m → n + p ≡ minustwo o
+trans-≡-exercise eq1 eq2 = trans eq2 eq1
+
+ℕ-≡-eq : ∀{n m} → n ≡ m → true ≡ ℕ-eq n m
+ℕ-≡-eq {0} {0} refl = refl
+ℕ-≡-eq {0} {suc _} ()
+ℕ-≡-eq {suc _} {0} ()
+ℕ-≡-eq {suc n} {suc m} eq = ℕ-≡-eq {n} {m} (eq-add-S eq)
+
+ℕ-eq-trans : ∀{n m p} → true ≡ ℕ-eq n m → true ≡ ℕ-eq m p → true ≡ ℕ-eq n p
+ℕ-eq-trans {n} {m} {p} eq1 eq2 = ℕ-≡-eq (ℕ-eq-≡ {n} {m} eq1 ⟨ trans ⟩ ℕ-eq-≡ {m} {p} eq2)
+
+
+
+override-permute : ∀{x} {X : Set x} →
+                   (x1 x2 : X) → (k1 k2 k3 : ℕ) → (f : ℕ → X) →
+                   false ≡ ℕ-eq k2 k1 →
+                   (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
+override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
+  where
+    assert1 : ((false ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
+               (false ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) ⊎
+              ((true ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
+               (true ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3))
+    assert1 with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    ... | false | false = inj₁ (inj₁ (refl , refl))
+    ... | false | true = inj₁ (inj₂ (refl , refl))
+    ... | true | false = inj₂ (inj₁ (refl , refl))
+    ... | true | true = inj₂ (inj₂ (refl , refl))
+    assert2 : ((false ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
+               (false ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) ⊎
+              ((true ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
+               (true ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) →
+              (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
+    assert2 (inj₁ (inj₁ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₁ (inj₁ (eq1 , eq2))) | false | false = refl
+    assert2 (inj₁ (inj₁ (eq1 , ()))) | false | true
+    assert2 (inj₁ (inj₁ (() , eq2))) | true | false
+    assert2 (inj₁ (inj₁ (() , eq2))) | true | true
+    assert2 (inj₁ (inj₂ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₁ (inj₂ (eq1 , ()))) | false | false
+    assert2 (inj₁ (inj₂ (eq1 , eq2))) | false | true = refl
+    assert2 (inj₁ (inj₂ (eq1 , ()))) | true | false
+    assert2 (inj₁ (inj₂ (() , eq2))) | true | true
+    assert2 (inj₂ (inj₁ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₂ (inj₁ (() , eq2))) | false | false
+    assert2 (inj₂ (inj₁ (() , eq2))) | false | true
+    assert2 (inj₂ (inj₁ (eq1 , eq2))) | true | false = refl
+    assert2 (inj₂ (inj₁ (eq1 , ()))) | true | true
+    assert2 (inj₂ (inj₂ (eq1 , eq2))) = ⊥-elim (not-¬ k2≢k1 k2≡k1)
+      where
+        open import Data.Bool.Properties using (not-¬)
+        k2≡k1 = sym $ ℕ-eq-trans {k2} {k3} {k1} eq2 (eq1 ⟨ trans ⟩ ℕ-eq-sym k1 k3)
+        k2≢k1 = sym eq
