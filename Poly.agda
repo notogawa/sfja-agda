@@ -877,3 +877,132 @@ override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
         open import Data.Bool.Properties using (not-¬)
         k2≡k1 = sym $ ℕ-eq-trans {k2} {k3} {k1} eq2 (eq1 ⟨ trans ⟩ ℕ-eq-sym k1 k3)
         k2≢k1 = sym eq
+
+{-
+練習問題: ★★, optional (fold_length)
+
+リストに関する多くの一般的な関数はfoldを使って書きなおすることができます。例えば、次に示すのはlengthの別な実装です。
+-}
+fold-length : ∀{x} {X : Set x} (ls : list X) → ℕ
+fold-length ls = fold (λ _ n → suc n) ls 0
+
+test-fold-length1 : fold-length (4 ∷ 7 ∷ [ 0 ]) ≡ 3
+test-fold-length1 = refl
+
+fold-length-correct : ∀{x} {X : Set x} (ls : list X) → fold-length ls ≡ length ls
+fold-length-correct [] = refl
+fold-length-correct (x ∷ xs) = cong suc (fold-length-correct xs)
+
+{-
+練習問題: ★★★, recommended (fold_map)
+
+map関数もfoldを使って書くことができます。以下のfold_mapを完成させなさい。
+-}
+fold-map : ∀{x y} {X : Set x} {Y : Set y} → (X → Y) → list X → list Y
+fold-map f ls = fold (λ x ys → f x ∷ ys) ls []
+
+
+fold-map-correct : ∀{x y} {X : Set x} {Y : Set y} → (f : X → Y) → (xs : list X) →
+                   fold-map f xs ≡ map f xs
+fold-map-correct f [] = refl
+fold-map-correct f (x ∷ xs) = cong (_∷_ (f x)) (fold-map-correct f xs)
+
+{-
+練習問題: ★★, optional (mumble_grumble)
+
+つぎの、機能的に定義された二つの型をよく観察してください。
+
+data mumble : Set where
+  a : mumble
+  b : mumble → ℕ → mumble
+  c : mumble
+
+data grumble {x} (X : Set x) : Set x where
+  d : mumble → grumble X
+  e : X → grumble X
+
+次の式のうち、ある型Xについてgrumble Xの要素として正しく定義されているものはどれでしょうか。
+d (b a 5)
+d mumble (b a 5)
+d bool (b a 5)
+e bool true
+e mumble (b c 0)
+e bool (b c 0)
+c
+-}
+-- d (b a 5) のみ
+
+{-
+練習問題: ★★, optional (baz_num_elts)
+
+次の、機能的に定義された型をよく観察してください。
+
+data baz : Set where
+  x : baz → baz
+  y : baz → Bool → baz
+
+型bazはいくつの要素を持つことができるでしょうか？
+-}
+-- ひとつも持てない
+
+{-
+練習問題: ★★★★, recommended (forall_exists_challenge)
+
+チャレンジ問題: 二つの再帰関数forallb、existsbを定義しなさい。forallbは、リストの全ての要素が与えられた条件を満たしているかどうかを返します。
+-}
+forallb : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
+forallb p xs = fold (λ x b → p x ∧ b) xs true
+
+existsb : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
+existsb p xs = fold (λ x b → p x ∨ b) xs false
+
+existsb' : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
+existsb' p = not ∘ forallb (not ∘ p)
+
+existb≡existsb' : ∀{x} {X : Set x} →
+                  (p : X → Bool) → (xs : list X) →
+                  existsb p xs ≡ existsb' p xs
+existb≡existsb' p [] = refl
+existb≡existsb' p (x ∷ xs) =
+  begin
+     existsb p (x ∷ xs)
+  ≡⟨ refl ⟩
+     p x ∨ existsb p xs
+  ≡⟨ cong (_∨_ (p x)) (existb≡existsb' p xs) ⟩
+     p x ∨ existsb' p xs
+  ≡⟨ refl ⟩
+     p x ∨ not (forallb (not ∘ p) xs)
+  ≡⟨ sym (not-not-P≡P) ⟩
+     not (not (p x ∨ not (forallb (not ∘ p) xs)))
+  ≡⟨ cong not (not-P∨Q≡not-P∧not-Q {p x}) ⟩
+     not (not (p x) ∧ not (not (forallb (not ∘ p) xs)))
+  ≡⟨ cong (λ a → not (not (p x) ∧ a)) not-not-P≡P ⟩
+     not (not (p x) ∧ (forallb (not ∘ p) xs))
+  ≡⟨ refl ⟩
+     existsb' p (x ∷ xs)
+  ∎
+  where
+    open Relation.Binary.PropositionalEquality.≡-Reasoning
+    not-not-P≡P : ∀{x} → not (not x) ≡ x
+    not-not-P≡P {false} = refl
+    not-not-P≡P {true} = refl
+    not-P∨Q≡not-P∧not-Q : ∀{x y} → not (x ∨ y) ≡ not x ∧ not y
+    not-P∨Q≡not-P∧not-Q {false} {false} = refl
+    not-P∨Q≡not-P∧not-Q {false} {true} = refl
+    not-P∨Q≡not-P∧not-Q {true} {false} = refl
+    not-P∨Q≡not-P∧not-Q {true} {true} = refl
+
+{-
+練習問題: ★★, optional (index_informal)
+
+index関数の定義を思い出してください。
+
+次の定理の、非形式的な証明を書きなさい。
+   ∀ X n l, length l = n → @index X (S n) l = None.
+-}
+-- ニポンゴ書くのめんどくさいので形式的な証明でカンベン
+out-of-bounds : ∀{x} {X : Set x} → (n : ℕ) → (xs : list X) →
+                length xs ≡ n → index (suc n) xs ≡ None
+out-of-bounds n [] eq = refl
+out-of-bounds zero (x ∷ xs) ()
+out-of-bounds (suc n) (x ∷ xs) eq = out-of-bounds n xs $ eq-add-S eq
