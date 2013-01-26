@@ -2,9 +2,11 @@ module Poly where
 
 import Level
 open import Function
+open import Data.Empty
 open import Data.Bool
 open import Data.Nat hiding (fold)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst₂)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 
 data Bool-list : Set where
   Bool-nil : Bool-list
@@ -15,10 +17,6 @@ infixr 5 _∷_
 data list {x} (X : Set x) : Set x where
   []  : list X
   _∷_ : X → list X → list X
-
-{-# BUILTIN LIST list #-}
-{-# BUILTIN NIL  []   #-}
-{-# BUILTIN CONS _∷_  #-}
 
 [_] : ∀{x} {X : Set x} → X → list X
 [ x ] = x ∷ []
@@ -733,3 +731,76 @@ split-combine (x ∷ xs , y ∷ ys) eq = cong pm (split-combine (xs , ys) (tail-
     tail-length-equiv : length (x ∷ xs) ≡ length (y ∷ ys) → length xs ≡ length ys
     tail-length-equiv eq = eq-add-S {length xs} {length ys} (∷≡∷→suc≡suc eq)
     pm = prod-map (_∷_ x) (_∷_ y)
+
+
+sillyfun1 : ℕ → Bool
+sillyfun1 n = if ℕ-eq n 3
+                then true
+                else if ℕ-eq n 5
+                  then true
+                  else false
+
+-- うーん remember がマップできてるかよくわからないな．これ対応してるかなぁ？
+sillyfun1-odd : ∀{n} → sillyfun1 n ≡ true → odd n ≡ true
+sillyfun1-odd {n} = 3-5-is-odd ∘ n-is-3-or-5
+  where
+    n-is-3-or-5 : sillyfun1 n ≡ true → true ≡ ℕ-eq n 3 ⊎ true ≡ ℕ-eq n 5
+    n-is-3-or-5 eq with ℕ-eq n 3 | ℕ-eq n 5 -- ここで分岐に使うと同時に以下で結果を保存
+    n-is-3-or-5 refl | true | _ = inj₁ refl -- remember as e3
+    n-is-3-or-5 refl | false | true = inj₂ refl -- remember as e5
+    n-is-3-or-5 () | false | false
+    3-5-is-odd : true ≡ ℕ-eq n 3 ⊎ true ≡ ℕ-eq n 5 → odd n ≡ true
+    3-5-is-odd (inj₁ eq) = cong odd (ℕ-eq-≡ {n} {3} eq) -- use e3
+    3-5-is-odd (inj₂ eq) = cong odd (ℕ-eq-≡ {n} {5} eq) -- use e5
+
+{-
+練習問題: ★★ (override_same)
+-}
+t≡B∨f≡B : ∀{b} → true ≡ b ⊎ false ≡ b
+t≡B∨f≡B {true} = inj₁ refl
+t≡B∨f≡B {false} = inj₂ refl
+
+override-same : ∀{x} {X : Set x} →
+                (x1 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
+                f k1 ≡ x1 → (override f k1 x1) k2 ≡ f k2
+override-same x1 k1 k2 f eq = override-same' $ assert' $ t≡B∨f≡B {ℕ-eq k1 k2}
+  where
+    override-same' : (true ≡ ℕ-eq k1 k2 × x1 ≡ f k2) ⊎ (false ≡ ℕ-eq k1 k2 × f k2 ≡ f k2) →
+                     (override f k1 x1) k2 ≡ f k2
+    override-same' eq with ℕ-eq k1 k2
+    override-same' (inj₁ (refl , eq))| true = eq
+    override-same' (inj₁ (() , _))| false
+    override-same' (inj₂ (() , _))| true
+    override-same' (inj₂ (refl , refl))| false = refl
+    assert' : true ≡ ℕ-eq k1 k2 ⊎ false ≡ ℕ-eq k1 k2 →
+              (true ≡ ℕ-eq k1 k2 × x1 ≡ f k2) ⊎ (false ≡ ℕ-eq k1 k2 × f k2 ≡ f k2)
+    assert' (inj₁ eq') = inj₁ (eq' , (sym eq ⟨ trans ⟩ cong f (ℕ-eq-≡ {k1} {k2} eq')) )
+    assert' (inj₂ eq') = inj₂ (eq' , refl)
+
+{-
+練習問題: ★★★, optional (filter_exercise)
+
+この問題はやや難しいかもしれません。最初にintrosを使うと、帰納法を適用するための変数まで上に上げてしまうので気をつけてください。
+-}
+
+filter-exercise : ∀{x} {X : Set x} →
+                  (test : X → Bool) → (x : X) → (l lf : list X) →
+                  filter test l ≡ x ∷ lf → test x ≡ true
+filter-exercise test x [] lf ()
+filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
+  where
+    head-inversion : ∀{x} {X : Set x} →
+                     (a b : X) → (as bs : list X) →
+                     a ∷ as ≡ b ∷ bs → a ≡ b
+    head-inversion .b b .bs bs refl = refl
+    assert1 : filter test (y ∷ ys) ≡ x ∷ lf →
+              (true ≡ test y × y ∷ filter test ys ≡ x ∷ lf) ⊎
+              (false ≡ test y × filter test ys ≡ x ∷ lf)
+    assert1 eq with test y
+    assert1 eq | true = inj₁ (refl , eq)
+    assert1 eq | false = inj₂ (refl , eq)
+    assert2 : (true ≡ test y × y ∷ filter test ys ≡ x ∷ lf) ⊎
+              (false ≡ test y × filter test ys ≡ x ∷ lf) ->
+              test x ≡ true
+    assert2 (inj₂ (eq1 , eq2)) = filter-exercise test x ys lf eq2
+    assert2 (inj₁ (eq1 , eq2)) = sym (eq1 ⟨ trans ⟩ cong test (head-inversion y x (filter test ys) lf eq2))
