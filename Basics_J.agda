@@ -2,7 +2,7 @@ module Basics_J where
 
 -- 等価性の証明のための標準ライブラリ
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong; cong₂; trans)
+open PropEq using (_≡_; refl; sym; cong; trans)
 
 -- 列挙型 ---------------------------------------------------------------------
 
@@ -358,25 +358,31 @@ O+n''≡n n = refl
 -- Coqではゴールに対する書き換えで証明を進めていくが，
 -- Agdaではゴールの式を仮定からどう構築するかを考えていくことになる．
 
--- 標準ライブラリのcong(congruence)を使う．
--- congの所で M-. すれば定義に飛べる．
--- a ≡ b → f a ≡ f b のカタチのequivalenceはみんなcongであり，
--- 結局 f a を a ≡ b で rewrite → したら f b だよねと言うのと同じ．
+-- rewrite を使う
 plus-id-example : (n m : nat) → n ≡ m → n + n ≡ m + m
-plus-id-example n m eq = cong (λ x → x + x) eq
+plus-id-example n m eq
+  rewrite eq
+        = refl
 
 {-
 練習問題: ★ (plus-id-exercise)
 
 Admitted.を削除し、証明を完成させなさい。
 -}
--- cong₂はcongの2引数版
+-- 複数使う場合は | で
 plus-id-exercise : (n m o : nat) → n ≡ m → m ≡ o → n + m ≡ m + o
-plus-id-exercise n m o = cong₂ (_+_)
+plus-id-exercise n m o eq1 eq2
+  rewrite eq1
+        | eq2
+        = refl
 
+-- 標準ライブラリのcong(congruence)を使う．
+-- congの所で M-. すれば定義に飛べる．
+-- a ≡ b → f a ≡ f b のカタチのequivalenceはみんなcongであり，
+-- 結局 f a を a ≡ b で rewrite → したら f b だよねと言うのと同じ．
 mult-0-plus : (n m : nat) → (0 + n) * m ≡ n * m
 mult-0-plus n m = cong (λ a → a * m) (O+n≡n n)
--- mult-0-plus = refl -- でもいいけど
+-- まぁこの式なら mult-0-plus = refl でもいいけど
 
 {-
 練習問題: ★★, recommended (mult-1-plus)
@@ -431,7 +437,9 @@ andb-true-elim2 false false ()
 -- 帰納法はパターンマッチからの再帰関数
 n+O≡n : (n : nat) → n + 0 ≡ n
 n+O≡n 0 = refl
-n+O≡n (S n) = cong S (n+O≡n n)
+n+O≡n (S n)
+  rewrite n+O≡n n
+        = refl
 
 minus-diag : (n : nat) → minus n n ≡ 0
 minus-diag 0 = refl
@@ -440,19 +448,25 @@ minus-diag (S n) = minus-diag n
 {-
 練習問題: ★★, recommended (basic-induction)
 -}
--- 標準ライブラリから trans(transitivity) で a ≡ b → b ≡ c → a ≡ c
 n*O≡O : (n : nat) → n * 0 ≡ 0
 n*O≡O 0 = refl
-n*O≡O (S n) = trans (trans (mult-1-plus n 0) (O+n≡n (n * 0))) (n*O≡O n)
+n*O≡O (S n)
+  rewrite n*O≡O n
+        = refl
 
 plus-n-Sm : (n m : nat) → S (n + m) ≡ n + (S m)
 plus-n-Sm 0     m = refl
-plus-n-Sm (S n) m = cong S (plus-n-Sm n m)
+plus-n-Sm (S n) m
+  rewrite plus-n-Sm n m
+        = refl
 
--- 標準ライブラリから sym(symmetricity) で a ≡ b → b ≡ a
 plus-comm : (n m : nat) → n + m ≡ m + n
-plus-comm 0     m = trans (O+n≡n m) (sym (n+O≡n m))
-plus-comm (S n) m = trans (cong S (plus-comm n m)) (plus-n-Sm m n)
+plus-comm 0 m
+  rewrite n+O≡n m
+        = refl
+plus-comm (S n) m
+  rewrite plus-comm n m
+        = plus-n-Sm m n
 
 
 double : nat → nat
@@ -464,7 +478,10 @@ double (S n) = S (S (double n))
 -}
 double-plus : (n : nat) → double n ≡ n + n
 double-plus 0 = refl
-double-plus (S n) = trans (cong (λ x → S (S x)) (double-plus n)) (cong S (plus-n-Sm n n))
+double-plus (S n)
+  rewrite double-plus n
+        | plus-n-Sm n n
+        = refl
 
 {-
 練習問題: ★ (destruct-induction)
@@ -480,7 +497,9 @@ destructとinductionの違いを短く説明しなさい。
 
 plus-assoc : (n m p : nat) → n + (m + p) ≡ (n + m) + p
 plus-assoc 0 m p = refl
-plus-assoc (S n) m p = cong S (plus-assoc n m p)
+plus-assoc (S n) m p
+  rewrite plus-assoc n m p
+        = refl
 
 {-
 練習問題: ★★ (plus-comm-informal)
@@ -527,6 +546,7 @@ plus-rearrange n m p q = cong (λ a → a + (p + q)) assert
 
 assertを使用して以下の証明を完成させなさい。ただしinduction（帰納法）を使用しないこと。
 -}
+-- 標準ライブラリから trans(transitivity) で a ≡ b → b ≡ c → a ≡ c
 plus-swap : (n m p : nat) → n + (m + p) ≡ m + (n + p)
 plus-swap n m p = trans (trans assert1 assert2) assert3
   where
@@ -547,6 +567,7 @@ plus-swap' n m p =
      (n + m) + p
   ≡⟨ cong (λ a → a + p) (plus-comm n m) ⟩
      (m + n) + p
+-- 標準ライブラリから sym(symmetricity) で a ≡ b → b ≡ a
   ≡⟨ sym (plus-assoc m n p) ⟩
      m + (n + p)
   ∎
@@ -597,6 +618,17 @@ mult-comm (S m) n = trans (cong (λ a → n + a) (mult-comm m n)) (mult-1-plus' 
       ∎
       where
         open PropEq.≡-Reasoning
+    -- rewriteだともっとシンプルにシュッとした感じになる
+    -- 途中どのように式変形されたかはコードから一見わからない．
+    -- ただ，congとかsymとかtransとか殆ど気にしないので書くにはラク
+    mult-1-plus''' : (n m : nat) → n + n * m ≡ n * (1 + m)
+    mult-1-plus''' 0 m = refl
+    mult-1-plus''' (S n) m
+      rewrite plus-swap (S n) m (n * m)
+            | mult-1-plus'' n m
+            | plus-assoc m 1 (n * (1 + m))
+            | plus-comm m 1
+            = refl
 
 {-
 練習問題: ★★, optional (evenb-n--oddb-Sn)
@@ -626,7 +658,7 @@ andb-false-r false = refl
 
 plus-ble-compat-l : (n m p : nat) → ble-nat n m ≡ true → ble-nat (p + n) (p + m) ≡ true
 plus-ble-compat-l n m 0 eq = eq
-plus-ble-compat-l n m (S p) eq = trans refl (plus-ble-compat-l n m p eq)
+plus-ble-compat-l n m (S p) eq = plus-ble-compat-l n m p eq
 
 S-nbeq-0 : (n : nat) → beq-nat (S n) 0 ≡ false
 S-nbeq-0 n = refl
@@ -642,11 +674,17 @@ all3-spec false false = refl
 
 mult-plus-distr-r : (n m p : nat) → (n + m) * p ≡ (n * p) + (m * p)
 mult-plus-distr-r 0 m p = refl
-mult-plus-distr-r (S n) m p = trans (cong (λ a → p + a) (mult-plus-distr-r n m p)) (plus-assoc p (n * p) (m * p))
+mult-plus-distr-r (S n) m p
+  rewrite mult-plus-distr-r n m p
+        = plus-assoc p (n * p) (m * p)
 
 mult-assoc : (n m p : nat) → n * (m * p) ≡ (n * m) * p
 mult-assoc 0 m p = refl
-mult-assoc (S n) m p = trans (cong (λ a → m * p + a) (mult-assoc n m p)) (sym (mult-plus-distr-r m (n * m) p))
+mult-assoc (S n) m p
+  rewrite mult-assoc n m p
+        | mult-plus-distr-r m (n * m) p
+        = refl
+
 
 {-
 練習問題: ★★, optional (plus_swap')
@@ -698,7 +736,9 @@ bin→nat (ShiftInc n) = S (double (bin→nat n))
 inc-bin-commute-bin→nat : (n : bin) → bin→nat (inc-bin n) ≡ S (bin→nat n)
 inc-bin-commute-bin→nat Zero = refl
 inc-bin-commute-bin→nat (Shift n) = refl
-inc-bin-commute-bin→nat (ShiftInc n) = cong double (inc-bin-commute-bin→nat n)
+inc-bin-commute-bin→nat (ShiftInc n)
+  rewrite inc-bin-commute-bin→nat n
+        = refl
 
 {-
 練習問題: ★★★★★ (binary_inverse)
@@ -713,7 +753,10 @@ nat→bin (S n) = inc-bin (nat→bin n)
 
 nat→bin→nat : (n : nat) → bin→nat (nat→bin n) ≡ n
 nat→bin→nat 0 = refl
-nat→bin→nat (S n) = trans (inc-bin-commute-bin→nat (nat→bin n)) (cong S (nat→bin→nat n))
+nat→bin→nat (S n)
+  rewrite inc-bin-commute-bin→nat (nat→bin n)
+        | nat→bin→nat n
+        = refl
 
 {-
 (b) あなたはきっと、逆方向についての証明をしたほうがいいのでは、と考えているでしょう。それは、任意の2進数から始まり、それを自然数にコンバートしてから、また2進数にコンバートし直したものが、元の自然数と一致する、という証明です。しかしながら、この結果はtrueにはなりません。！！その原因を説明しなさい。
@@ -730,7 +773,9 @@ normalize : bin → bin
 normalize n = nat→bin (bin→nat n)
 
 normalize-idempotent : (n : bin) → normalize (normalize n) ≡ normalize n
-normalize-idempotent n = cong (λ a → nat→bin a) (nat→bin→nat (bin→nat n))
+normalize-idempotent n
+  rewrite nat→bin→nat (bin→nat n)
+        = refl
 
 {-
 練習問題: ★★, optional (decreasing)
