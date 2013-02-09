@@ -1,7 +1,7 @@
 module Lists_J where
 
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong; trans)
+open PropEq using (_≡_; refl; sym; cong)
 
 open import Basics_J
 
@@ -308,11 +308,16 @@ module NatList where
 
   length-snoc : (n : nat) (l : natlist) → length (snoc l n) ≡ 1 + length l
   length-snoc n [] = refl
-  length-snoc n (x ∷ xs) = cong (λ a → 1 + a) (length-snoc n xs)
+  length-snoc n (x ∷ xs)
+    rewrite length-snoc n xs
+          = refl
 
   rev-length : (l : natlist) → length (rev l) ≡ length l
   rev-length [] = refl
-  rev-length (x ∷ xs) rewrite length-snoc x (rev xs) = cong (λ a → 1 + a) (rev-length xs)
+  rev-length (x ∷ xs)
+    rewrite length-snoc x (rev xs)
+          | rev-length xs
+          = refl
 
 ---- SearchAbout --------------------------------------------------------------
 --- ...
@@ -325,7 +330,9 @@ module NatList where
   -}
   app-nil-end : (l : natlist) → l ++ [] ≡ l
   app-nil-end [] = refl
-  app-nil-end (x ∷ xs) = cong (λ as → x ∷ as) (app-nil-end xs)
+  app-nil-end (x ∷ xs)
+    rewrite app-nil-end xs
+          = refl
 
   rev-snoc-commute-rev-cons : (n : nat) (ls : natlist) → rev (snoc ls n) ≡ n ∷ rev ls
   rev-snoc-commute-rev-cons n [] = refl
@@ -333,37 +340,39 @@ module NatList where
 
   rev-involutive : (l : natlist) → rev (rev l) ≡ l
   rev-involutive [] = refl
-  rev-involutive (x ∷ xs) rewrite rev-snoc-commute-rev-cons x (rev xs) = cong (λ as → x ∷ as) (rev-involutive xs)
+  rev-involutive (x ∷ xs)
+    rewrite rev-snoc-commute-rev-cons x (rev xs)
+          | rev-involutive xs
+          = refl
 
   distr-rev : (l1 l2 : natlist) → rev (l1 ++ l2) ≡ rev l2 ++ rev l1
-  distr-rev [] ys = sym (app-nil-end (rev ys))
-  distr-rev (x ∷ xs) ys =
-    begin
-       rev (x ∷ xs ++ ys)
-    ≡⟨ refl ⟩
-       snoc (rev (xs ++ ys)) x
-    ≡⟨ cong (λ z → snoc z x) (distr-rev xs ys)⟩
-       snoc (rev ys ++ rev xs) x
-    ≡⟨ ++-snoc x (rev ys) (rev xs) ⟩
-       rev ys ++ snoc (rev xs) x
-    ≡⟨ refl ⟩
-       rev ys ++ rev (x ∷ xs)
-    ∎
+  distr-rev [] ys
+    rewrite app-nil-end (rev ys)
+          = refl
+  distr-rev (x ∷ xs) ys
+    rewrite distr-rev xs ys
+          = ++-snoc x (rev ys) (rev xs)
     where
-      open PropEq.≡-Reasoning
       ++-snoc : (n : nat) (l1 l2 : natlist) → snoc (l1 ++ l2) n ≡ l1 ++ snoc l2 n
       ++-snoc n [] ys = refl
-      ++-snoc n (x ∷ xs) ys = cong (λ as → x ∷ as) (++-snoc n xs ys)
+      ++-snoc n (x ∷ xs) ys
+        rewrite ++-snoc n xs ys
+              = refl
 
   {-
   次の問題には簡単な解法があります。こんがらがってしまったようであれば、少し戻って単純な方法を探してみましょう。
   -}
   app-ass4 : (l1 l2 l3 l4 : natlist) → l1 ++ (l2 ++ (l3 ++ l4)) ≡ ((l1 ++ l2) ++ l3) ++ l4
-  app-ass4 l1 l2 l3 l4 = sym (trans (app-ass (l1 ++ l2) l3 l4) (app-ass l1 l2 (l3 ++ l4)))
+  app-ass4 l1 l2 l3 l4
+    rewrite app-ass (l1 ++ l2) l3 l4
+          | app-ass l1 l2 (l3 ++ l4)
+          = refl
 
   snoc-append : (l : natlist) (n : nat) → snoc l n ≡ l ++ [ n ]
   snoc-append [] n = refl
-  snoc-append (x ∷ xs) n = cong (λ as → x ∷ as) (snoc-append xs n)
+  snoc-append (x ∷ xs) n
+    rewrite snoc-append xs n
+          = refl
 
   {-
   前に書いた nonzeros 関数に関する練習問題です。
@@ -415,18 +424,13 @@ module NatList where
   この練習問題には簡単な解法と難しい解法があります。
   -}
   rev-injective : (l1 l2 : natlist) → rev l1 ≡ rev l2 → l1 ≡ l2
-  rev-injective xs ys eq =
-    begin
-       xs
-    ≡⟨ sym (rev-involutive xs) ⟩
-       rev (rev xs)
-    ≡⟨ cong rev eq ⟩
-       rev (rev ys)
-    ≡⟨ rev-involutive ys ⟩
-       ys
-    ∎
+  rev-injective xs ys eq = rev-injective' (cong rev eq)
     where
-      open PropEq.≡-Reasoning
+      rev-injective' : rev (rev xs) ≡ rev (rev ys) → xs ≡ ys
+      rev-injective' eq
+        rewrite rev-involutive xs
+              | rev-involutive ys
+              = eq
   -- 難しい解法ってなんだろう？
 
 -- オプション -----------------------------------------------------------------
@@ -509,25 +513,17 @@ module NatList where
 
   beq-natlist-refl : (l : natlist) → true ≡ beq-natlist l l
   beq-natlist-refl [] = refl
-  beq-natlist-refl (x ∷ xs) =
-    begin
-       true
-    ≡⟨ refl ⟩
-       andb true true
-    ≡⟨ sym (cong (λ a → andb a true) (sym (beq-nat-refl x))) ⟩
-       andb (beq-nat x x) true
-    ≡⟨ cong (andb (beq-nat x x)) (beq-natlist-refl xs) ⟩
-       andb (beq-nat x x) (beq-natlist xs xs)
-    ≡⟨ refl ⟩
-       beq-natlist (x ∷ xs) (x ∷ xs)
-    ∎
-    where
-      open PropEq.≡-Reasoning
+  beq-natlist-refl (x ∷ xs)
+    rewrite sym (beq-nat-refl x)
+          | sym (beq-natlist-refl xs)
+          = refl
 
 -- apply タクティック ---------------------------------------------------------
 
   silly1 : (n m o p : nat) → n ≡ m → n ∷ [ o ] ≡ n ∷ [ p ] → n ∷ [ o ] ≡ m ∷ [ p ]
-  silly1 n m o p eq1 eq2 = trans eq2 (cong (λ z → z ∷ [ p ]) eq1)
+  silly1 n m o p eq1 eq2
+    rewrite eq1
+          = eq2
 
   silly2 : (n m o p : nat) → n ≡ m → ((q r : nat) → q ≡ r → q ∷ [ o ] ≡ r ∷ [ p ]) → n ∷ [ o ] ≡ m ∷ [ p ]
   silly2 n m o p eq1 eq2 = eq2 n m eq1
@@ -557,7 +553,10 @@ module NatList where
   -}
 
   rev-exercise1 : (l l' : natlist) → l ≡ rev l' → l' ≡ rev l
-  rev-exercise1 l l' eq rewrite eq = sym (rev-involutive l')
+  rev-exercise1 l l' eq
+    rewrite eq
+          | rev-involutive l'
+          = refl
 
   {-
   練習問題: ★ (apply_rewrite)
