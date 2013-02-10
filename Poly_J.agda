@@ -1,20 +1,21 @@
 module Poly_J where
 
 import Level
-open import Function
-open import Data.Empty
-open import Data.Bool
-open import Data.Nat hiding (fold)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst₂)
+open import Function -- 解禁
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl; cong; sym; trans; subst₂)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+open import Basics_J
+open import Lists_J
 
 -- ポリモルフィズム（多相性） -------------------------------------------------
 
 ---- 多相的なリスト -----------------------------------------------------------
 
-data Bool-list : Set where
-  Bool-nil : Bool-list
-  Bool-cons : Bool → Bool-list → Bool-list
+data boollist : Set where
+  bool-nil : boollist
+  bool-cons : bool → boollist → boollist
 
 infixr 5 _∷_
 
@@ -35,11 +36,11 @@ Main> :typeOf 1 ∷ 2 ∷ []
 list ℕ
 -}
 
-length' : ∀{x} (X : Set x) → list X → ℕ
+length' : ∀{x} (X : Set x) → list X → nat
 length' X [] = 0
 length' X (_ ∷ xs) = 1 + length' X xs
 
-test-length'1 : length' ℕ (1 ∷ 2 ∷ []) ≡ 2
+test-length'1 : length' nat (1 ∷ 2 ∷ []) ≡ 2
 test-length'1 = refl
 
 app' : ∀{x} (X : Set x) → list X → list X → list X
@@ -54,9 +55,9 @@ rev' : ∀{x} (X : Set x) → list X → list X
 rev' X [] = []
 rev' X (x ∷ xs) = snoc' X (rev' X xs) x
 
-test-rev'1 : rev' ℕ (1 ∷ 2 ∷ []) ≡ 2 ∷ 1 ∷ []
+test-rev'1 : rev' nat (1 ∷ 2 ∷ []) ≡ 2 ∷ 1 ∷ []
 test-rev'1 = refl
-test-rev'2 : rev' Bool [] ≡ []
+test-rev'2 : rev' bool [] ≡ []
 test-rev'2 = refl
 
 ------ 型推論 -----------------------------------------------------------------
@@ -64,12 +65,12 @@ test-rev'2 = refl
 
 
 ------ 引数の同化（Synthesis） ------------------------------------------------
-length'' : ∀{x} (X : Set x) → list X → ℕ
+length'' : ∀{x} (X : Set x) → list X → nat
 length'' _ [] = 0
 length'' _ (_ ∷ xs) = 1 + length'' _ xs
 
 ------ 暗黙の引数 -------------------------------------------------------------
-length : ∀{x} {X : Set x} → list X → ℕ
+length : ∀{x} {X : Set x} → list X → nat
 length [] = 0
 length (_ ∷ xs) = 1 + length xs
 
@@ -94,29 +95,32 @@ rev (x ∷ xs) = snoc (rev xs) x
 
 ここにあるいくつかの練習問題は、List_J.vにあったものと同じですが、多相性の練習になります。以下の定義を行い、証明を完成させなさい。
 -}
-repeat : ∀{x} {X : Set x} → X → ℕ → list X
+repeat : ∀{x} {X : Set x} → X → nat → list X
 repeat x 0 = []
-repeat x (suc n) = x ∷ repeat x n
+repeat x (S n) = x ∷ repeat x n
 
 test-repeat1 : repeat true 2 ≡ true ∷ true ∷ []
 test-repeat1 = refl
 
-[]-++ : ∀{x} {X : Set x} →
+nil-app : ∀{x} {X : Set x} →
         (l : list X) → [] ++ l ≡ l
-[]-++ [] = refl
-[]-++ (x ∷ xs) = cong (λ as → x ∷ as) ([]-++ xs)
+nil-app xs = refl
 
 rev-snoc : ∀{x} {X : Set x} →
            (v : X) → (s : list X) →
            rev (snoc s v) ≡ v ∷ rev s
 rev-snoc v [] = refl
-rev-snoc v (x ∷ xs) = cong (λ as → snoc as x) (rev-snoc v xs)
+rev-snoc v (x ∷ xs)
+  rewrite rev-snoc v xs
+        = refl
 
 snoc-with-append : ∀{x} {X : Set x} →
                    (v : X) → (l1 : list X) → (l2 : list X) →
                    snoc (l1 ++ l2) v ≡ l1 ++ snoc l2 v
 snoc-with-append v [] ys = refl
-snoc-with-append v (x ∷ xs) ys = cong (λ as → x ∷ as) (snoc-with-append v xs ys)
+snoc-with-append v (x ∷ xs) ys
+  rewrite snoc-with-append v xs ys
+        = refl
 
 ---- 多相的なペア -------------------------------------------------------------
 
@@ -183,25 +187,13 @@ data option {x} (X : Set x) : Set x where
   Some : X → option X
   None : option X
 
-ℕ-eq : ℕ → ℕ → Bool
-ℕ-eq zero zero = true
-ℕ-eq zero (suc m) = false
-ℕ-eq (suc n) zero = false
-ℕ-eq (suc n) (suc m) = ℕ-eq n m
+if_then_else_ : ∀ {x} {X : Set x} → bool → X → X → X
+if true  then t else f = t
+if false then t else f = f
 
-ℕ-eq-refl : (n : ℕ) → ℕ-eq n n ≡ true
-ℕ-eq-refl 0 = refl
-ℕ-eq-refl (suc n) = ℕ-eq-refl n
-
-ℕ-eq-sym : (n m : ℕ) → ℕ-eq n m ≡ ℕ-eq m n
-ℕ-eq-sym 0 0 = refl
-ℕ-eq-sym 0 (suc m) = refl
-ℕ-eq-sym (suc n) 0 = refl
-ℕ-eq-sym (suc n) (suc m) = ℕ-eq-sym n m
-
-index : ∀{x} {X : Set x} → ℕ → list X → option X
+index : ∀{x} {X : Set x} → nat → list X → option X
 index n [] = None
-index n (x ∷ xs) = if ℕ-eq 0 n then Some x else index (pred n) xs
+index n (x ∷ xs) = if beq-nat 0 n then Some x else index (pred n) xs
 
 test-index1 : index 0 (4 ∷ 5 ∷ 6 ∷ 7 ∷ []) ≡ Some 4
 test-index1 = refl
@@ -232,23 +224,23 @@ test-hd-opt2 = refl
 doit3times : ∀{x} {X : Set x} → (X → X) → X → X
 doit3times f = f ∘ f ∘ f
 
-test-doit3times : doit3times (λ a → a ∸ 2) 9 ≡ 3
+test-doit3times : doit3times (λ a → a - 2) 9 ≡ 3
 test-doit3times = refl
-test-doit3times' : doit3times not true ≡ false
+test-doit3times' : doit3times negb true ≡ false
 test-doit3times' = refl
 
 ---- 部分適用 ------------------------------------------------------------------
 
 {-
 Main> :typeOf _+_
-ℕ → ℕ → ℕ
+nat → nat → nat
 -}
 
 plus3 = _+_ 3
 
 {-
 Main> :typeOf _+_ 3
-ℕ → ℕ
+nat → nat
 -}
 
 test-plus3 : plus3 4 ≡ 7
@@ -290,28 +282,21 @@ curry-uncurry f (x , y) = refl
 
 ---- フィルター (Filter)関数 --------------------------------------------------
 
-filter : ∀{x} {X : Set x} → (X → Bool) → list X → list X
+filter : ∀{x} {X : Set x} → (X → bool) → list X → list X
 filter p [] = []
 filter p (x ∷ xs) = if p x then x ∷ filter p xs else filter p xs
 
--- 再定義
-even : ℕ → Bool
-even 0 = true
-even (suc n) = not (even n)
-odd : ℕ → Bool
-odd n = not (even n)
-
-test-filter1 : filter even (1 ∷ 2 ∷ 3 ∷ [ 4 ]) ≡ 2 ∷ [ 4 ]
+test-filter1 : filter evenb (1 ∷ 2 ∷ 3 ∷ [ 4 ]) ≡ 2 ∷ [ 4 ]
 test-filter1 = refl
 
-length-is-1 : ∀{x} {X : Set x} → list X → Bool
-length-is-1 ls = ℕ-eq (length ls) 1
+length-is-1 : ∀{x} {X : Set x} → list X → bool
+length-is-1 ls = beq-nat (length ls) 1
 
 test-filter2 : filter length-is-1 ((1 ∷ 2 ∷ []) ∷ [ 3 ] ∷ [ 4 ] ∷ (5 ∷ 6 ∷ []) ∷ [] ∷ [ 8 ] ∷ []) ≡ [ 3 ] ∷ [ 4 ] ∷ [ 8 ] ∷ []
 test-filter2 = refl
 
-countoddmembers' : list ℕ → ℕ
-countoddmembers' ls = length (filter odd ls)
+countoddmembers' : list nat → nat
+countoddmembers' = length ∘ filter oddb
 
 test-countoddmembers'1 : countoddmembers' (1 ∷ 0 ∷ 3 ∷ 1 ∷ 4 ∷ 5 ∷ []) ≡ 4
 test-countoddmembers'1 = refl
@@ -325,7 +310,7 @@ test-countoddmembers'3 = refl
 test-anon-fun' : doit3times (λ n → n * n) 2 ≡ 256
 test-anon-fun' = refl
 
-test-filter2' : filter (λ ls → ℕ-eq (length ls) 1) ((1 ∷ 2 ∷ []) ∷ [ 3 ] ∷ [ 4 ] ∷ (5 ∷ 6 ∷ []) ∷ [] ∷ [ 8 ] ∷ []) ≡ [ 3 ] ∷ [ 4 ] ∷ [ 8 ] ∷ []
+test-filter2' : filter (λ ls → beq-nat (length ls) 1) ((1 ∷ 2 ∷ []) ∷ [ 3 ] ∷ [ 4 ] ∷ (5 ∷ 6 ∷ []) ∷ [] ∷ [ 8 ] ∷ []) ≡ [ 3 ] ∷ [ 4 ] ∷ [ 8 ] ∷ []
 test-filter2' = refl
 
 {-
@@ -333,13 +318,8 @@ test-filter2' = refl
 
 filter関数を使い、数値のリストを入力すると、そのうち偶数でなおかつ7より大きい要素だけを取り出すfilter_even_gt7関数を書きなさい。
 -}
-filter-even-gt7 : list ℕ → list ℕ
-filter-even-gt7 = filter (λ n → even n ∧ ℕ-< 7 n)
-  where
-    ℕ-< : ℕ → ℕ → Bool
-    ℕ-< _ 0 = false
-    ℕ-< 0 (suc _) = true
-    ℕ-< (suc n) (suc m) = ℕ-< n m
+filter-even-gt7 : list nat → list nat
+filter-even-gt7 = filter (λ n → andb (evenb n) (andb (ble-nat 7 n) (negb (beq-nat 7 n))))
 
 test-filter-even-gt7-1 : filter-even-gt7 (1 ∷ 2 ∷ 6 ∷ 9 ∷ 10 ∷ 3 ∷ 12 ∷ 8 ∷ []) ≡ 10 ∷ 12 ∷ 8 ∷ []
 test-filter-even-gt7-1 = refl
@@ -355,13 +335,12 @@ filter関数を使って、partition関数を書きなさい。:
 
 型Xについて、X型の値がある条件を満たすかを調べる述語X → boolとXのリストlist Xを引数に与えると、partition関数はリストのペアを返します。ペアの最初の要素は、与えられたリストのうち、条件を満たす要素だけのリストで、二番目の要素は、条件を満たさないもののリストです。二つのリストの要素の順番は、元のリストの順と同じでなければなりません。
 -}
-partition : ∀{x} {X : Set x} → (X → Bool) → list X → list X × list X
+partition : ∀{x} {X : Set x} → (X → bool) → list X → list X × list X
 partition p [] = ([] , [])
-partition p (x ∷ xs) with p x | partition p xs
-... | true  | (as , bs) = (x ∷ as , bs)
-... | false | (as , bs) = (as , x ∷ bs)
+partition p (x ∷ xs) with partition p xs
+... | (as , bs) = if p x then (x ∷ as , bs) else (as , x ∷ bs)
 
-test-partition1 : partition odd (1 ∷ 2 ∷ 3 ∷ 4 ∷ 5 ∷ []) ≡ (1 ∷ 3 ∷ 5 ∷ [] , 2 ∷ 4 ∷ [])
+test-partition1 : partition oddb (1 ∷ 2 ∷ 3 ∷ 4 ∷ 5 ∷ []) ≡ (1 ∷ 3 ∷ 5 ∷ [] , 2 ∷ 4 ∷ [])
 test-partition1 = refl
 test-partition2 : partition (λ _ → false) (5 ∷ 9 ∷ 0 ∷ []) ≡ ([] , 5 ∷ 9 ∷ 0 ∷ [])
 test-partition2 = refl
@@ -374,9 +353,9 @@ map f (x ∷ xs) = f x ∷ map f xs
 
 test-map1 : map (_+_ 3) (2 ∷ 0 ∷ 2 ∷ []) ≡ 5 ∷ 3 ∷ 5 ∷ []
 test-map1 = refl
-test-map2 : map odd (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ false ∷ true ∷ false ∷ true ∷ []
+test-map2 : map oddb (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ false ∷ true ∷ false ∷ true ∷ []
 test-map2 = refl
-test-map3 : map (λ n → even n ∷ odd n ∷ []) (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ []
+test-map3 : map (λ n → evenb n ∷ oddb n ∷ []) (2 ∷ 1 ∷ 2 ∷ 5 ∷ []) ≡ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ (true ∷ false ∷ []) ∷ (false ∷ true ∷ []) ∷ []
 test-map3 = refl
 
 {-
@@ -388,33 +367,28 @@ mapとrevが可換であることを示しなさい。証明には補題をた�
          (f : X → Y) → (l1 : list X) → (l2 : list X) →
          map f (l1 ++ l2) ≡ map f l1 ++ map f l2
 ++-map f [] ys = refl
-++-map f (x ∷ xs) ys = cong (_∷_ (f x)) (++-map f xs ys)
+++-map f (x ∷ xs) ys
+  rewrite ++-map f xs ys
+        = refl
+
+snoc-append : ∀{x} {X : Set x} →
+              (l : list X) → (n : X) →
+              snoc l n ≡ l ++ [ n ]
+snoc-append [] n = refl
+snoc-append (x ∷ xs) n
+  rewrite snoc-append xs n
+        = refl
 
 map-rev : ∀{x y} {X : Set x} {Y : Set y} →
           (f : X → Y) → (l : list X) →
           map f (rev l) ≡ rev (map f l)
 map-rev f [] = refl
-map-rev f (x ∷ xs) =
-  begin
-     map f (rev (x ∷ xs))
-  ≡⟨ refl ⟩
-     map f (snoc (rev xs) x)
-  ≡⟨ cong (map f) (snoc-append (rev xs) x) ⟩
-     map f (rev xs ++ [ x ])
-  ≡⟨ ++-map f (rev xs) ([ x ]) ⟩
-     map f (rev xs) ++ f x ∷ []
-  ≡⟨ sym (snoc-append (map f (rev xs)) (f x)) ⟩
-     snoc (map f (rev xs)) (f x)
-  ≡⟨ cong (λ z → snoc z (f x)) (map-rev f xs) ⟩
-     rev (map f (x ∷ xs))
-  ∎
-  where
-    open Relation.Binary.PropositionalEquality.≡-Reasoning
-    snoc-append : ∀{x} {X : Set x} →
-                  (l : list X) → (n : X) →
-                  snoc l n ≡ l ++ [ n ]
-    snoc-append [] n = refl
-    snoc-append (x ∷ xs) n = cong (λ as → x ∷ as) (snoc-append xs n)
+map-rev f (x ∷ xs)
+  rewrite snoc-append (rev xs) x
+        | ++-map f (rev xs) ([ x ])
+        | sym (snoc-append (map f (rev xs)) (f x))
+        | map-rev f xs
+        = refl
 
 {-
 練習問題: ★★, recommended (flat_map)
@@ -443,6 +417,8 @@ filterやmap関数を定義したり使ったりするケースでは、多く�
 -}
 -- 略
 
+---- 畳み込み（Fold）関数 -----------------------------------------------------
+
 fold : ∀{x y} → {X : Set x} {Y : Set y} →
        (X → Y → Y) → list X → Y → Y
 fold f [] e = e
@@ -450,14 +426,12 @@ fold f (x ∷ xs) e = f x (fold f xs e)
 
 {-
 Main> :typeOf fold (_+_)
-list ℕ → ℕ → ℕ
+list nat → nat → nat
 -}
-
----- 畳み込み（Fold）関数 -----------------------------------------------------
 
 fold-example1 : fold (_*_) (1 ∷ 2 ∷ 3 ∷ 4 ∷ []) 1 ≡ 24
 fold-example1 = refl
-fold-example2 : fold (_∧_) (true ∷ true ∷ false ∷ true ∷ []) true ≡ false
+fold-example2 : fold andb (true ∷ true ∷ false ∷ true ∷ []) true ≡ false
 fold-example2 = refl
 fold-example3 : fold (_++_) ([ 1 ] ∷ [] ∷ (2 ∷ [ 3 ]) ∷ [ 4 ] ∷ []) [] ≡ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
 fold-example3 = refl
@@ -471,7 +445,7 @@ fold関数がXとY二つの型引数をとっていて、関数fが型Xを引数
 
 ---- 関数を作成する関数 -------------------------------------------------------
 
-constfun : ∀{x} {X : Set x} → X → ℕ → X
+constfun : ∀{x} {X : Set x} → X → nat → X
 constfun x = λ _ → x
 
 ftrue = constfun true
@@ -481,8 +455,8 @@ constfun-example1 = refl
 constfun-example2 : constfun 5 99 ≡ 5
 constfun-example2 = refl
 
-override : ∀{x} {X : Set x} → (ℕ → X) → ℕ → X → ℕ → X
-override f k x = λ k' → if ℕ-eq k k' then x else f k'
+override : ∀{x} {X : Set x} → (nat → X) → nat → X → nat → X
+override f k x k' = if beq-nat k k' then x else f k'
 
 fmostlytrue = override (override ftrue 1 false) 3 false
 
@@ -501,7 +475,7 @@ override-example4 = refl
 次の証明にとりかかる前に、あなたがこの証明の意味することを理解しているか確認するため、証明内容を別の言葉で言い換えてください。証明自体は単純なものです。
 -}
 -- "「3のときtrue，それ以外のときbとなる関数」に2を適用したらbになることを示せ"
-override-example : (b : Bool) → override (constfun b) 3 true 2 ≡ b
+override-example : (b : bool) → override (constfun b) 3 true 2 ≡ b
 override-example false = refl
 override-example true = refl
 
@@ -510,36 +484,32 @@ override-example true = refl
 ---- unfoldタクティック -------------------------------------------------------
 
 -- unfoldなにそれおいしいの？
-unfold-example : {m n : ℕ} → 3 + n ≡ m → plus3 n + 1 ≡ m + 1
-unfold-example eq = cong (λ a → a + 1) eq
+-- symでrewrite方向を弄る
+unfold-example : {m n : nat} → 3 + n ≡ m → plus3 n + 1 ≡ m + 1
+unfold-example eq
+  rewrite sym eq
+        = refl
 
--- tacticなくても元々ﾃﾞｷﾙｩｰ
+-- tacticﾅｸﾃﾓｶﾃﾙｩｰ
 override-eq : ∀{x} {X : Set x} →
-              (x : X) → (k : ℕ) → (f : ℕ → X) →
+              (x : X) → (k : nat) → (f : nat → X) →
               override f k x k ≡ x
-override-eq x 0 f = refl
-override-eq x (suc k) f = cong (λ a → if a then x else f (suc k)) (ℕ-eq-refl k)
+override-eq x k f
+  rewrite sym (beq-nat-refl k)
+        = refl
+
 
 {-
 練習問題: ★★ (override_neq)
 -}
 override-neq : ∀{x} {X : Set x} →
-               (x1 x2 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
-               f k1 ≡ x1 → ℕ-eq k1 k2 ≡ false → override f k2 x2 k1 ≡ x1
-override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2 =
-  begin
-     override f k2 x2 k1
-  ≡⟨ refl ⟩
-     (if ℕ-eq k2 k1 then x2 else f k1)
-  ≡⟨ cong (λ a → if a then x2 else f k1) (ℕ-eq-sym k2 k1) ⟩
-     (if ℕ-eq k1 k2 then x2 else f k1)
-  ≡⟨ cong (λ a → if a then x2 else f k1) k1≠k2 ⟩
-     (if false then x2 else f k1)
-  ≡⟨ fk1≡x1 ⟩
-     x1
-  ∎
-  where
-    open Relation.Binary.PropositionalEquality.≡-Reasoning
+               (x1 x2 : X) → (k1 k2 : nat) → (f : nat → X) →
+               f k1 ≡ x1 → beq-nat k1 k2 ≡ false → override f k2 x2 k1 ≡ x1
+override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2
+  rewrite beq-nat-sym k2 k1
+        | k1≠k2
+        | fk1≡x1
+        = refl
 
 ---- 反転（Inversion） --------------------------------------------------------
 
@@ -547,13 +517,13 @@ override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2 =
 -- てことはデストラクトに相当する操作でcongするのが定石？
 
 -- というか… dot pattern でいいのか．
-eq-add-S : {n m : ℕ} → suc n ≡ suc m → n ≡ m
+eq-add-S : {n m : nat} → S n ≡ S m → n ≡ m
 eq-add-S {.m} {m} refl = refl
 
-silly4 : {n m : ℕ} →  [ n ] ≡ [ m ] → n ≡ m
+silly4 : {n m : nat} →  [ n ] ≡ [ m ] → n ≡ m
 silly4 {.m} {m} refl = refl
 
-silly5 : {n m o : ℕ} → n ∷ [ m ] ≡ o ∷ [ o ] → [ n ] ≡ [ m ]
+silly5 : {n m o : nat} → n ∷ [ m ] ≡ o ∷ [ o ] → [ n ] ≡ [ m ]
 silly5 {.o} {.o} {o} refl = refl
 
 {-
@@ -567,10 +537,10 @@ sillyex1 x y z l j eq1 eq2 = sym (assert y x l j eq2)
               x ∷ xs ≡ y ∷ ys → x ≡ y
     assert .y y .ys ys refl = refl
 
-silly6 : (n : ℕ) → suc n ≡ 0 → 2 + 2 ≡ 5
+silly6 : (n : nat) → S n ≡ 0 → 2 + 2 ≡ 5
 silly6 n ()
 
-silly7 : (n m : ℕ) → false ≡ true → [ n ] ≡ [ m ]
+silly7 : (n m : nat) → false ≡ true → [ n ] ≡ [ m ]
 silly7 n m ()
 
 {-
@@ -580,14 +550,16 @@ sillyex2 : ∀{x} {X : Set x} → (x y z : X) → (l j : list X) →
            x ∷ y ∷ l ≡ [] → y ∷ l ≡ z ∷ j → x ≡ z
 sillyex2 _ _ _ _ _ ()
 
-eq-remove-S : ∀{n m} → n ≡ m → suc n ≡ suc m
+eq-remove-S : ∀{n m} → n ≡ m → S n ≡ S m
 eq-remove-S {.m} {m} refl = refl
 
-ℕ-eq-≡ : ∀{n m} → true ≡ ℕ-eq n m → n ≡ m
-ℕ-eq-≡ {0} {0} refl = refl
-ℕ-eq-≡ {0} {suc _} ()
-ℕ-eq-≡ {suc _} {0} ()
-ℕ-eq-≡ {suc n} {suc m} eq = cong suc (ℕ-eq-≡ {n} {m} eq)
+beq-nat-≡ : ∀{n m} → true ≡ beq-nat n m → n ≡ m
+beq-nat-≡ {0} {0} refl = refl
+beq-nat-≡ {0} {S _} ()
+beq-nat-≡ {S _} {0} ()
+beq-nat-≡ {S n} {S m} eq
+  rewrite beq-nat-≡ {n} {m} eq
+        = refl
 
 {-
 練習問題: ★★ (beq_nat_eq_informal)
@@ -603,19 +575,23 @@ beq_nat_eqの、非形式的な証明を示しなさい。
 beq_nat_eqは、mについて帰納法をつかうことで証明することができました。しかし我々は、もう少し変数を導入する順序に注意を払うべきです。なぜなら、我々は一般に、十分な帰納法の仮定を得ているからです。このことを次に示します。次の証明を完成させなさい。この練習問題の効果を最大にするため、とりあえずは先にやった証明を見ないで取り組んでください。
 -}
 -- どういうことだってばよ？
-ℕ-eq-≡' : ∀{m n} → ℕ-eq n m ≡ true → n ≡ m
-ℕ-eq-≡' {0} {0} refl = refl
-ℕ-eq-≡' {0} {suc _} ()
-ℕ-eq-≡' {suc _} {0} ()
-ℕ-eq-≡' {suc m} {suc n} eq = cong suc (ℕ-eq-≡' {m} {n} eq)
+beq-nat-≡' : ∀{m n} → beq-nat n m ≡ true → n ≡ m
+beq-nat-≡' {0} {0} refl = refl
+beq-nat-≡' {0} {S _} ()
+beq-nat-≡' {S _} {0} ()
+beq-nat-≡' {S m} {S n} eq
+  rewrite beq-nat-≡' {m} {n} eq
+        = refl
 
 length-snoc' : ∀{x} {X : Set x} →
-               (v : X) → (l : list X) (n : ℕ) →
-               length l ≡ n → length (snoc l v) ≡ suc n
+               (v : X) → (l : list X) (n : nat) →
+               length l ≡ n → length (snoc l v) ≡ S n
 length-snoc' v [] 0 eq = refl
-length-snoc' v [] (suc _) ()
+length-snoc' v [] (S _) ()
 length-snoc' v (x ∷ xs) 0 ()
-length-snoc' v (x ∷ xs) (suc n) eq = cong suc (length-snoc' v xs n (eq-add-S {length xs} {n} eq))
+length-snoc' v (x ∷ xs) (S n) eq
+  rewrite length-snoc' v xs n (eq-add-S {length xs} {n} eq)
+        = refl
 
 ------ 練習問題 ---------------------------------------------------------------
 
@@ -624,35 +600,32 @@ length-snoc' v (x ∷ xs) (suc n) eq = cong suc (length-snoc' v xs n (eq-add-S {
 
 同じところに分類され、相互に関連するような、自明でもないが複雑というほどでもない証明をいくつか練習問題としましょう。このうち、いくつかは過去のレクチャーや練習問題に出てきた補題を使用します。
 -}
-ℕ-eq-0-l : ∀{n} → true ≡ ℕ-eq 0 n → 0 ≡ n
-ℕ-eq-0-l = ℕ-eq-≡ {0}
+beq-nat-0-l : ∀{n} → true ≡ beq-nat 0 n → 0 ≡ n
+beq-nat-0-l = beq-nat-≡ {0}
 
-ℕ-eq-0-r : ∀{n} → true ≡ ℕ-eq n 0 → 0 ≡ n
-ℕ-eq-0-r {n} eq = sym (ℕ-eq-≡ {n} {0} eq)
-
-double : ℕ → ℕ
-double zero = zero
-double (suc n) = suc $ suc $ double n
+beq-nat-0-r : ∀{n} → true ≡ beq-nat n 0 → 0 ≡ n
+beq-nat-0-r {n} eq = sym (beq-nat-≡ {n} {0} eq)
 
 double-injective : ∀{n m} → double n ≡ double m → n ≡ m
 double-injective {0} {0} refl = refl
-double-injective {0} {suc _} ()
-double-injective {suc _} {0} ()
-double-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 eq
+double-injective {0} {S _} ()
+double-injective {S _} {0} ()
+double-injective {S n} {S m} eq = cong S $ ind $ drop-S2 $ drop-S1 eq
   where
     ind = double-injective {n} {m}
-    drop-suc1 = eq-add-S {suc (double n)} {suc (double m)}
-    drop-suc2 = eq-add-S {double n} {double m}
+    drop-S1 = eq-add-S {S (double n)} {S (double m)}
+    drop-S2 = eq-add-S {double n} {double m}
+
 
 ---- タクティックを仮定に使用する ---------------------------------------------
 
 -- ?
-S-inj : (n m : ℕ) → (b : Bool) → ℕ-eq (suc n) (suc m) ≡ b → ℕ-eq n m ≡ b
+S-inj : (n m : nat) → (b : bool) → beq-nat (S n) (S m) ≡ b → beq-nat n m ≡ b
 S-inj n m b eq = eq
 
 -- 何?
-silly3' : (n : ℕ) → (ℕ-eq n 5 ≡ true → ℕ-eq (suc (suc n)) 7 ≡ true) →
-          true ≡ ℕ-eq n 5 → true ≡ ℕ-eq (suc (suc n)) 7
+silly3' : (n : nat) → (beq-nat n 5 ≡ true → beq-nat (S (S n)) 7 ≡ true) →
+          true ≡ beq-nat n 5 → true ≡ beq-nat (S (S n)) 7
 silly3' n _ eq = eq
 
 {-
@@ -660,62 +633,48 @@ silly3' n _ eq = eq
 
 先に述べた"in"を使って次の証明をしなさい。
 -}
-+-assoc : {n m p : ℕ} → n + (m + p) ≡ (n + m) + p
-+-assoc {0} = refl
-+-assoc {suc n} = cong suc (+-assoc {n})
+Sn+Sn≡SSn+n : ∀{n} → S n + S n ≡ S (S (n + n))
+Sn+Sn≡SSn+n {n}
+  rewrite plus-assoc (S n) 1 n
+        | plus-comm n 1
+        = refl
 
-0+n≡n : {n : ℕ} → 0 + n ≡ n
-0+n≡n = refl
-
-n+0≡n : {n : ℕ} → n + 0 ≡ n
-n+0≡n {0} = refl
-n+0≡n {suc n} = cong suc (n+0≡n {n})
-
-+-comm : {n m : ℕ} → n + m ≡ m + n
-+-comm {0}     {m} = 0+n≡n {m} ⟨ trans ⟩ sym (n+0≡n {m})
-+-comm {suc n} {m} = cong suc (+-comm {n} {m}) ⟨ trans ⟩ Sn+m≡n+Sm {m} {n}
-  where
-    Sn+m≡n+Sm : {n m : ℕ} → suc (n + m) ≡ n + (suc m)
-    Sn+m≡n+Sm {0}   {m} = refl
-    Sn+m≡n+Sm {suc n} {m} = cong suc (Sn+m≡n+Sm {n} {m})
-
-Sn+Sn≡SSn+n : ∀{n} → suc n + suc n ≡ suc (suc (n + n))
-Sn+Sn≡SSn+n {n} = +-assoc {suc n} {1} {n} ⟨ trans ⟩ cong (λ a → suc (a + n)) (+-comm {n} {1})
-
-n+n-injective : {n m : ℕ} → n + n ≡ m + m → n ≡ m
+n+n-injective : {n m : nat} → n + n ≡ m + m → n ≡ m
 n+n-injective {0} {0} refl = refl
-n+n-injective {0} {suc _} ()
-n+n-injective {suc _} {0} ()
-n+n-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 $ toSS $ eq
+n+n-injective {0} {S _} ()
+n+n-injective {S _} {0} ()
+n+n-injective {S n} {S m} eq = cong S $ ind $ drop-S2 $ drop-S1 $ toSS eq
   where
     ind = n+n-injective {n} {m}
-    drop-suc1 = eq-add-S {suc (n + n)} {suc (m + m)}
-    drop-suc2 = eq-add-S {n + n} {m + m}
+    drop-S1 = eq-add-S {S (n + n)} {S (m + m)}
+    drop-S2 = eq-add-S {n + n} {m + m}
     toSS = subst₂ (_≡_) (Sn+Sn≡SSn+n {n}) (Sn+Sn≡SSn+n {m})
 
 ---- destructを複合式で使う ---------------------------------------------------
 
-sillyfun : ℕ → Bool
-sillyfun n = if ℕ-eq n 3
-               then false
-               else if ℕ-eq n 5
-                      then false
-                      else false
+sillyfun : nat → bool
+sillyfun n with beq-nat n 3
+sillyfun n | true = false
+sillyfun n | false with beq-nat n 5
+sillyfun n | false | true = false
+sillyfun n | false | false = false
 
 sillyfun-false : ∀{n} → sillyfun n ≡ false
-sillyfun-false {n} with ℕ-eq n 3 | ℕ-eq n 5
-... | true | _ = refl
-... | false | true = refl
-... | false | false = refl
+sillyfun-false {n} with beq-nat n 3
+sillyfun-false {n} | true = refl
+sillyfun-false {n} | false with beq-nat n 5
+sillyfun-false {n} | false | true = refl
+sillyfun-false {n} | false | false = refl
 
 {-
 練習問題: ★ (override_shadow)
 -}
-override-shadow : ∀{x} {X : Set x} → (x1 x2 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
+override-shadow : ∀{x} {X : Set x} → (x1 x2 : X) → (k1 k2 : nat) → (f : nat → X) →
                   (override (override f k1 x2) k1 x1) k2 ≡ (override f k1 x1) k2
-override-shadow x1 x2 k1 k2 f with ℕ-eq k1 k2
-... | true = refl
-... | false = refl
+override-shadow x1 x2 k1 k2 f with beq-nat k1 k2
+override-shadow x1 x2 k1 k2 f | true = refl
+override-shadow x1 x2 k1 k2 f | false = refl
+
 
 {-
 練習問題: ★★★, recommended (combine_split)
@@ -734,7 +693,7 @@ combine-split ((x , y) ∷ xys) =
      (x , y) ∷ xys
   ∎
   where
-    open Relation.Binary.PropositionalEquality.≡-Reasoning
+    open PropEq.≡-Reasoning
     combine-prod-map : ∀{x y} {X : Set x} {Y : Set y} →
                        (x : X) → (y : Y) → (xsys : list X × list Y) →
                        combine (prod-map (_∷_ x) (_∷_ y) xsys) ≡ (x , y) ∷ combine xsys
@@ -759,34 +718,35 @@ split-combine ([] , y ∷ ys) ()
 split-combine (x ∷ xs , []) ()
 split-combine (x ∷ xs , y ∷ ys) eq = cong pm (split-combine (xs , ys) (tail-length-equiv eq))
   where
-    ∷→suc : ∀{x} {X : Set x} → (x : X) → (xs : list X) → length (x ∷ xs) ≡ suc (length xs)
-    ∷→suc x xs = refl
-    ∷≡∷→suc≡suc = subst₂ (_≡_) (∷→suc x xs) (∷→suc y ys)
+    ∷→S : ∀{x} {X : Set x} → (x : X) → (xs : list X) → length (x ∷ xs) ≡ S (length xs)
+    ∷→S x xs = refl
+    ∷≡∷→S≡S = subst₂ (_≡_) (∷→S x xs) (∷→S y ys)
     tail-length-equiv : length (x ∷ xs) ≡ length (y ∷ ys) → length xs ≡ length ys
-    tail-length-equiv eq = eq-add-S {length xs} {length ys} (∷≡∷→suc≡suc eq)
+    tail-length-equiv eq = eq-add-S {length xs} {length ys} (∷≡∷→S≡S eq)
     pm = prod-map (_∷_ x) (_∷_ y)
 
 ---- rememberタクティック -----------------------------------------------------
 
-sillyfun1 : ℕ → Bool
-sillyfun1 n = if ℕ-eq n 3
-                then true
-                else if ℕ-eq n 5
-                  then true
-                  else false
+sillyfun1 : nat → bool
+sillyfun1 n with beq-nat n 3
+sillyfun1 n | true = true
+sillyfun1 n | false with beq-nat n 5
+sillyfun1 n | false | true = true
+sillyfun1 n | false | false = false
 
 -- うーん remember がマップできてるかよくわからないな．これ対応してるかなぁ？
-sillyfun1-odd : ∀{n} → sillyfun1 n ≡ true → odd n ≡ true
+sillyfun1-odd : ∀{n} → sillyfun1 n ≡ true → oddb n ≡ true
 sillyfun1-odd {n} = 3-5-is-odd ∘ n-is-3-or-5
   where
-    n-is-3-or-5 : sillyfun1 n ≡ true → true ≡ ℕ-eq n 3 ⊎ true ≡ ℕ-eq n 5
-    n-is-3-or-5 eq with ℕ-eq n 3 | ℕ-eq n 5 -- ここで分岐に使うと同時に以下で結果を保存
-    n-is-3-or-5 refl | true | _ = inj₁ refl -- remember as e3
+    n-is-3-or-5 : sillyfun1 n ≡ true → true ≡ beq-nat n 3 ⊎ true ≡ beq-nat n 5
+    n-is-3-or-5 eq with beq-nat n 3
+    n-is-3-or-5 refl | true = inj₁ refl -- remember as e3
+    n-is-3-or-5 eq   | false with beq-nat n 5 -- ここで分岐に使うと同時に以下で結果を保存
     n-is-3-or-5 refl | false | true = inj₂ refl -- remember as e5
     n-is-3-or-5 () | false | false
-    3-5-is-odd : true ≡ ℕ-eq n 3 ⊎ true ≡ ℕ-eq n 5 → odd n ≡ true
-    3-5-is-odd (inj₁ eq) = cong odd (ℕ-eq-≡ {n} {3} eq) -- use e3
-    3-5-is-odd (inj₂ eq) = cong odd (ℕ-eq-≡ {n} {5} eq) -- use e5
+    3-5-is-odd : true ≡ beq-nat n 3 ⊎ true ≡ beq-nat n 5 → oddb n ≡ true
+    3-5-is-odd (inj₁ eq) = cong oddb (beq-nat-≡ {n} {3} eq) -- use e3
+    3-5-is-odd (inj₂ eq) = cong oddb (beq-nat-≡ {n} {5} eq) -- use e5
 
 {-
 練習問題: ★★ (override_same)
@@ -796,20 +756,20 @@ t≡B∨f≡B {true} = inj₁ refl
 t≡B∨f≡B {false} = inj₂ refl
 
 override-same : ∀{x} {X : Set x} →
-                (x1 : X) → (k1 k2 : ℕ) → (f : ℕ → X) →
+                (x1 : X) → (k1 k2 : nat) → (f : nat → X) →
                 f k1 ≡ x1 → (override f k1 x1) k2 ≡ f k2
-override-same x1 k1 k2 f eq = override-same' $ assert' $ t≡B∨f≡B {ℕ-eq k1 k2}
+override-same x1 k1 k2 f eq = override-same' $ assert' $ t≡B∨f≡B {beq-nat k1 k2}
   where
-    override-same' : (true ≡ ℕ-eq k1 k2 × x1 ≡ f k2) ⊎ (false ≡ ℕ-eq k1 k2 × f k2 ≡ f k2) →
+    override-same' : (true ≡ beq-nat k1 k2 × x1 ≡ f k2) ⊎ (false ≡ beq-nat k1 k2 × f k2 ≡ f k2) →
                      (override f k1 x1) k2 ≡ f k2
-    override-same' eq with ℕ-eq k1 k2
+    override-same' eq with beq-nat k1 k2
     override-same' (inj₁ (refl , eq))| true = eq
     override-same' (inj₁ (() , _))| false
     override-same' (inj₂ (() , _))| true
     override-same' (inj₂ (refl , refl))| false = refl
-    assert' : true ≡ ℕ-eq k1 k2 ⊎ false ≡ ℕ-eq k1 k2 →
-              (true ≡ ℕ-eq k1 k2 × x1 ≡ f k2) ⊎ (false ≡ ℕ-eq k1 k2 × f k2 ≡ f k2)
-    assert' (inj₁ eq') = inj₁ (eq' , (sym eq ⟨ trans ⟩ cong f (ℕ-eq-≡ {k1} {k2} eq')) )
+    assert' : true ≡ beq-nat k1 k2 ⊎ false ≡ beq-nat k1 k2 →
+              (true ≡ beq-nat k1 k2 × x1 ≡ f k2) ⊎ (false ≡ beq-nat k1 k2 × f k2 ≡ f k2)
+    assert' (inj₁ eq') = inj₁ (eq' , (sym eq ⟨ trans ⟩ cong f (beq-nat-≡ {k1} {k2} eq')) )
     assert' (inj₂ eq') = inj₂ (eq' , refl)
 
 {-
@@ -819,7 +779,7 @@ override-same x1 k1 k2 f eq = override-same' $ assert' $ t≡B∨f≡B {ℕ-eq k
 -}
 
 filter-exercise : ∀{x} {X : Set x} →
-                  (test : X → Bool) → (x : X) → (l lf : list X) →
+                  (test : X → bool) → (x : X) → (l lf : list X) →
                   filter test l ≡ x ∷ lf → test x ≡ true
 filter-exercise test x [] lf ()
 filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
@@ -842,77 +802,80 @@ filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
 
 ---- apply ... with ...タクティック -------------------------------------------
 
--- おぁ？trans解禁しちゃってるから要領も何もだな
-trans-eq-example : {a b c d e f : ℕ} →
+trans-eq-example : {a b c d e f : nat} →
                    a ∷ [ b ] ≡ c ∷ [ d ] → c ∷ [ d ] ≡ e ∷ [ f ] → a ∷ [ b ] ≡ e ∷ [ f ]
-trans-eq-example = trans
+trans-eq-example eq1 eq2
+  rewrite eq1
+        | eq2
+        = refl
+-- trans-eq-example = trans でいいけど
 
 trans-≡ : ∀{x} {X : Set x} {n m o : X} → n ≡ m → m ≡ o → n ≡ o
-trans-≡ = trans
+trans-≡ eq1 eq2
+  rewrite eq1
+        | eq2
+        = refl
 
 {-
 練習問題: ★★★, recommended (apply_exercises)
 -}
-minustwo : ℕ → ℕ
-minustwo 0 = 0
-minustwo 1 = 0
-minustwo (suc (suc n)) = n
-
-trans-≡-exercise : {n m o p : ℕ} →
-                   m ≡ minustwo o → (n + p) ≡ m → n + p ≡ minustwo o
+trans-≡-exercise : {n m o p : nat} →
+                   m ≡ minustwo o → n + p ≡ m → n + p ≡ minustwo o
 trans-≡-exercise eq1 eq2 = trans eq2 eq1
 
-ℕ-≡-eq : ∀{n m} → n ≡ m → true ≡ ℕ-eq n m
-ℕ-≡-eq {0} {0} refl = refl
-ℕ-≡-eq {0} {suc _} ()
-ℕ-≡-eq {suc _} {0} ()
-ℕ-≡-eq {suc n} {suc m} eq = ℕ-≡-eq {n} {m} (eq-add-S eq)
+nat-≡-eq : ∀{n m} → n ≡ m → true ≡ beq-nat n m
+nat-≡-eq {0} {0} refl = refl
+nat-≡-eq {0} {S _} ()
+nat-≡-eq {S _} {0} ()
+nat-≡-eq {S n} {S m} eq = nat-≡-eq {n} {m} (eq-add-S eq)
 
-ℕ-eq-trans : ∀{n m p} → true ≡ ℕ-eq n m → true ≡ ℕ-eq m p → true ≡ ℕ-eq n p
-ℕ-eq-trans {n} {m} {p} eq1 eq2 = ℕ-≡-eq (ℕ-eq-≡ {n} {m} eq1 ⟨ trans ⟩ ℕ-eq-≡ {m} {p} eq2)
-
-
+beq-nat-trans : ∀{n m p} → true ≡ beq-nat n m → true ≡ beq-nat m p → true ≡ beq-nat n p
+beq-nat-trans {n} {m} {p} eq1 eq2
+  rewrite beq-nat-≡ {n} {m} eq1
+        | beq-nat-≡ {m} {p} eq2
+        = beq-nat-refl p
 
 override-permute : ∀{x} {X : Set x} →
-                   (x1 x2 : X) → (k1 k2 k3 : ℕ) → (f : ℕ → X) →
-                   false ≡ ℕ-eq k2 k1 →
+                   (x1 x2 : X) → (k1 k2 k3 : nat) → (f : nat → X) →
+                   false ≡ beq-nat k2 k1 →
                    (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
 override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
   where
-    assert1 : ((false ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
-               (false ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) ⊎
-              ((true ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
-               (true ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3))
-    assert1 with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert1 : ((false ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
+               (false ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) ⊎
+              ((true ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
+               (true ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3))
+    assert1 with beq-nat k1 k3 | beq-nat k2 k3
     ... | false | false = inj₁ (inj₁ (refl , refl))
     ... | false | true = inj₁ (inj₂ (refl , refl))
     ... | true | false = inj₂ (inj₁ (refl , refl))
     ... | true | true = inj₂ (inj₂ (refl , refl))
-    assert2 : ((false ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
-               (false ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) ⊎
-              ((true ≡ ℕ-eq k1 k3 × false ≡ ℕ-eq k2 k3) ⊎
-               (true ≡ ℕ-eq k1 k3 × true ≡ ℕ-eq k2 k3)) →
+    assert2 : ((false ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
+               (false ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) ⊎
+              ((true ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
+               (true ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) →
               (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
-    assert2 (inj₁ (inj₁ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₁ (inj₁ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
     assert2 (inj₁ (inj₁ (eq1 , eq2))) | false | false = refl
     assert2 (inj₁ (inj₁ (eq1 , ()))) | false | true
     assert2 (inj₁ (inj₁ (() , eq2))) | true | false
     assert2 (inj₁ (inj₁ (() , eq2))) | true | true
-    assert2 (inj₁ (inj₂ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₁ (inj₂ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
     assert2 (inj₁ (inj₂ (eq1 , ()))) | false | false
     assert2 (inj₁ (inj₂ (eq1 , eq2))) | false | true = refl
     assert2 (inj₁ (inj₂ (eq1 , ()))) | true | false
     assert2 (inj₁ (inj₂ (() , eq2))) | true | true
-    assert2 (inj₂ (inj₁ (eq1 , eq2))) with ℕ-eq k1 k3 | ℕ-eq k2 k3
+    assert2 (inj₂ (inj₁ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
     assert2 (inj₂ (inj₁ (() , eq2))) | false | false
     assert2 (inj₂ (inj₁ (() , eq2))) | false | true
     assert2 (inj₂ (inj₁ (eq1 , eq2))) | true | false = refl
     assert2 (inj₂ (inj₁ (eq1 , ()))) | true | true
-    assert2 (inj₂ (inj₂ (eq1 , eq2))) = ⊥-elim (not-¬ k2≢k1 k2≡k1)
-      where
-        open import Data.Bool.Properties using (not-¬)
-        k2≡k1 = sym $ ℕ-eq-trans {k2} {k3} {k1} eq2 (eq1 ⟨ trans ⟩ ℕ-eq-sym k1 k3)
-        k2≢k1 = sym eq
+    assert2 (inj₂ (inj₂ (eq1 , eq2))) with trans eq
+                                             (sym
+                                              (beq-nat-trans {k2} {k3} {k1} eq2
+                                               (eq1 ⟨ trans ⟩ beq-nat-sym k1 k3)))
+    assert2 (inj₂ (inj₂ (eq1 , eq2))) | ()
+
 
 -- まとめ ---------------------------------------------------------------------
 
@@ -923,15 +886,17 @@ override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
 
 リストに関する多くの一般的な関数はfoldを使って書きなおすることができます。例えば、次に示すのはlengthの別な実装です。
 -}
-fold-length : ∀{x} {X : Set x} (ls : list X) → ℕ
-fold-length ls = fold (λ _ n → suc n) ls 0
+fold-length : ∀{x} {X : Set x} (ls : list X) → nat
+fold-length ls = fold (λ _ n → S n) ls 0
 
 test-fold-length1 : fold-length (4 ∷ 7 ∷ [ 0 ]) ≡ 3
 test-fold-length1 = refl
 
 fold-length-correct : ∀{x} {X : Set x} (ls : list X) → fold-length ls ≡ length ls
 fold-length-correct [] = refl
-fold-length-correct (x ∷ xs) = cong suc (fold-length-correct xs)
+fold-length-correct (x ∷ xs)
+  rewrite fold-length-correct xs
+        = refl
 
 {-
 練習問題: ★★★, recommended (fold_map)
@@ -945,7 +910,9 @@ fold-map f ls = fold (λ x ys → f x ∷ ys) ls []
 fold-map-correct : ∀{x y} {X : Set x} {Y : Set y} → (f : X → Y) → (xs : list X) →
                    fold-map f xs ≡ map f xs
 fold-map-correct f [] = refl
-fold-map-correct f (x ∷ xs) = cong (_∷_ (f x)) (fold-map-correct f xs)
+fold-map-correct f (x ∷ xs)
+  rewrite fold-map-correct f xs
+        = refl
 
 {-
 練習問題: ★★, optional (mumble_grumble)
@@ -954,7 +921,7 @@ fold-map-correct f (x ∷ xs) = cong (_∷_ (f x)) (fold-map-correct f xs)
 
 data mumble : Set where
   a : mumble
-  b : mumble → ℕ → mumble
+  b : mumble → nat → mumble
   c : mumble
 
 data grumble {x} (X : Set x) : Set x where
@@ -979,7 +946,7 @@ c
 
 data baz : Set where
   x : baz → baz
-  y : baz → Bool → baz
+  y : baz → bool → baz
 
 型bazはいくつの要素を持つことができるでしょうか？
 -}
@@ -990,43 +957,43 @@ data baz : Set where
 
 チャレンジ問題: 二つの再帰関数forallb、existsbを定義しなさい。forallbは、リストの全ての要素が与えられた条件を満たしているかどうかを返します。
 -}
-forallb : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
-forallb p xs = fold (λ x b → p x ∧ b) xs true
+forallb : ∀{x} {X : Set x} → (X → bool) → list X → bool
+forallb p xs = fold (λ x b → andb (p x) b) xs true
 
-existsb : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
-existsb p xs = fold (λ x b → p x ∨ b) xs false
+existsb : ∀{x} {X : Set x} → (X → bool) → list X → bool
+existsb p xs = fold (λ x b → orb (p x) b) xs false
 
-existsb' : ∀{x} {X : Set x} → (X → Bool) → list X → Bool
-existsb' p = not ∘ forallb (not ∘ p)
+existsb' : ∀{x} {X : Set x} → (X → bool) → list X → bool
+existsb' p = negb ∘ forallb (negb ∘ p)
 
 existb≡existsb' : ∀{x} {X : Set x} →
-                  (p : X → Bool) → (xs : list X) →
+                  (p : X → bool) → (xs : list X) →
                   existsb p xs ≡ existsb' p xs
 existb≡existsb' p [] = refl
 existb≡existsb' p (x ∷ xs) =
   begin
      existsb p (x ∷ xs)
   ≡⟨ refl ⟩
-     p x ∨ existsb p xs
-  ≡⟨ cong (_∨_ (p x)) (existb≡existsb' p xs) ⟩
-     p x ∨ existsb' p xs
+     orb (p x) (existsb p xs)
+  ≡⟨ cong (orb (p x)) (existb≡existsb' p xs) ⟩
+     orb (p x) (existsb' p xs)
   ≡⟨ refl ⟩
-     p x ∨ not (forallb (not ∘ p) xs)
+     orb (p x) (negb (forallb (negb ∘ p) xs))
   ≡⟨ sym (not-not-P≡P) ⟩
-     not (not (p x ∨ not (forallb (not ∘ p) xs)))
-  ≡⟨ cong not (not-P∨Q≡not-P∧not-Q {p x}) ⟩
-     not (not (p x) ∧ not (not (forallb (not ∘ p) xs)))
-  ≡⟨ cong (λ a → not (not (p x) ∧ a)) not-not-P≡P ⟩
-     not (not (p x) ∧ (forallb (not ∘ p) xs))
+     negb (negb (orb (p x) (negb (forallb (negb ∘ p) xs))))
+  ≡⟨ cong negb (not-P∨Q≡not-P∧not-Q {p x}) ⟩
+     negb (andb (negb (p x)) (negb (negb (forallb (negb ∘ p) xs))))
+  ≡⟨ cong (λ a → negb (andb (negb (p x)) a)) not-not-P≡P ⟩
+     negb (andb (negb (p x)) (forallb (negb ∘ p) xs))
   ≡⟨ refl ⟩
      existsb' p (x ∷ xs)
   ∎
   where
-    open Relation.Binary.PropositionalEquality.≡-Reasoning
-    not-not-P≡P : ∀{x} → not (not x) ≡ x
+    open PropEq.≡-Reasoning
+    not-not-P≡P : ∀{x} → negb (negb x) ≡ x
     not-not-P≡P {false} = refl
     not-not-P≡P {true} = refl
-    not-P∨Q≡not-P∧not-Q : ∀{x y} → not (x ∨ y) ≡ not x ∧ not y
+    not-P∨Q≡not-P∧not-Q : ∀{x y} → negb (orb x y) ≡ andb (negb x) (negb y)
     not-P∨Q≡not-P∧not-Q {false} {false} = refl
     not-P∨Q≡not-P∧not-Q {false} {true} = refl
     not-P∨Q≡not-P∧not-Q {true} {false} = refl
@@ -1041,8 +1008,8 @@ index関数の定義を思い出してください。
    ∀ X n l, length l = n → @index X (S n) l = None.
 -}
 -- ニポンゴ書くのめんどくさいので形式的な証明でカンベン
-out-of-bounds : ∀{x} {X : Set x} → (n : ℕ) → (xs : list X) →
-                length xs ≡ n → index (suc n) xs ≡ None
+out-of-bounds : ∀{x} {X : Set x} → (n : nat) → (xs : list X) →
+                length xs ≡ n → index (S n) xs ≡ None
 out-of-bounds n [] eq = refl
-out-of-bounds zero (x ∷ xs) ()
-out-of-bounds (suc n) (x ∷ xs) eq = out-of-bounds n xs $ eq-add-S eq
+out-of-bounds 0 (x ∷ xs) ()
+out-of-bounds (S n) (x ∷ xs) eq = out-of-bounds n xs $ eq-add-S eq

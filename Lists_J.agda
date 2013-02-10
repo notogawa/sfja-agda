@@ -631,4 +631,4 @@ module Dictionary where
   dictionary-invariant2 d m n o () | true
   dictionary-invariant2 d m n o eq | false = refl
 
-open NatList using (beq-nat-sym)
+beq-nat-sym = NatList.beq-nat-sym
