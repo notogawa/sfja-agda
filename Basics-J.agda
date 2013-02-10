@@ -1,4 +1,4 @@
-module Basics_J where
+module Basics-J where
 
 -- 等価性の証明のための標準ライブラリ
 import Relation.Binary.PropositionalEquality as PropEq

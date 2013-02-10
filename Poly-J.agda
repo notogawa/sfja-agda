@@ -1,4 +1,4 @@
-module Poly_J where
+module Poly-J where
 
 import Level
 open import Function -- 解禁
@@ -6,8 +6,8 @@ import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl; cong; sym; trans; subst₂)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 
-open import Basics_J
-open import Lists_J
+open import Basics-J
+open import Lists-J
 
 -- ポリモルフィズム（多相性） -------------------------------------------------
 

@@ -1,9 +1,9 @@
-module Lists_J where
+module Lists-J where
 
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl; sym; cong)
 
-open import Basics_J
+open import Basics-J
 
 
 -- 数のペア -------------------------------------------------------------------

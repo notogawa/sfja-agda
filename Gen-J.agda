@@ -1,12 +1,12 @@
-module Gen_J where
+module Gen-J where
 
 open import Function
 import Relation.Binary.PropositionalEquality as PropEq
 open PropEq using (_≡_; refl; cong; sym; trans; subst₂)
 
-open import Basics_J
-open import Lists_J
-open import Poly_J
+open import Basics-J
+open import Lists-J
+open import Poly-J
 
 -- doubleの単射とかgeneralize dependent関するギロンに対してはやることないかな
 
