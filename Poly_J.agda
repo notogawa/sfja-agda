@@ -1,4 +1,4 @@
-module Poly where
+module Poly_J where
 
 import Level
 open import Function
@@ -7,6 +7,10 @@ open import Data.Bool
 open import Data.Nat hiding (fold)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; subst₂)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+-- ポリモルフィズム（多相性） -------------------------------------------------
+
+---- 多相的なリスト -----------------------------------------------------------
 
 data Bool-list : Set where
   Bool-nil : Bool-list
@@ -55,16 +59,16 @@ test-rev'1 = refl
 test-rev'2 : rev' Bool [] ≡ []
 test-rev'2 = refl
 
--- 型推論の項
+------ 型推論 -----------------------------------------------------------------
 -- 略
 
 
--- 引数の同化(相当)
+------ 引数の同化（Synthesis） ------------------------------------------------
 length'' : ∀{x} (X : Set x) → list X → ℕ
 length'' _ [] = 0
 length'' _ (_ ∷ xs) = 1 + length'' _ xs
 
--- 暗黙の引数(…ってこれまでも使いまくってるけど)
+------ 暗黙の引数 -------------------------------------------------------------
 length : ∀{x} {X : Set x} → list X → ℕ
 length [] = 0
 length (_ ∷ xs) = 1 + length xs
@@ -82,6 +86,8 @@ snoc (x ∷ xs) n = x ∷ snoc xs n
 rev : ∀{x} {X : Set x} → list X → list X
 rev [] = []
 rev (x ∷ xs) = snoc (rev xs) x
+
+------ 練習問題:多相的なリスト ------------------------------------------------
 
 {-
 練習問題: ★★, optional (poly_exercises)
@@ -112,6 +118,7 @@ snoc-with-append : ∀{x} {X : Set x} →
 snoc-with-append v [] ys = refl
 snoc-with-append v (x ∷ xs) ys = cong (λ as → x ∷ as) (snoc-with-append v xs ys)
 
+---- 多相的なペア -------------------------------------------------------------
 
 infixr 2 _×_
 infixr 4 _,_
@@ -170,6 +177,8 @@ split : ∀{x y} {X : Set x} {Y : Set y} → list (X × Y) → list X × list Y
 split [] = ([] , [])
 split ((x , y) ∷ xys) = prod-map (_∷_ x) (_∷_ y) (split xys)
 
+---- 多相的なオプション -------------------------------------------------------
+
 data option {x} (X : Set x) : Set x where
   Some : X → option X
   None : option X
@@ -216,6 +225,9 @@ test-hd-opt1 = refl
 test-hd-opt2 : hd-opt ([ 1 ] ∷ [ 2 ] ∷ []) ≡ Some [ 1 ]
 test-hd-opt2 = refl
 
+-- データとしての関数 ---------------------------------------------------------
+
+---- 高階関数 -----------------------------------------------------------------
 
 doit3times : ∀{x} {X : Set x} → (X → X) → X → X
 doit3times f = f ∘ f ∘ f
@@ -224,6 +236,8 @@ test-doit3times : doit3times (λ a → a ∸ 2) 9 ≡ 3
 test-doit3times = refl
 test-doit3times' : doit3times not true ≡ false
 test-doit3times' = refl
+
+---- 部分適用 ------------------------------------------------------------------
 
 {-
 Main> :typeOf _+_
@@ -243,6 +257,8 @@ test-plus3' : doit3times plus3 0 ≡ 9
 test-plus3' = refl
 test-plus3'' : doit3times (_+_ 3) 0 ≡ 9
 test-plus3'' = refl
+
+---- 余談： カリー化 ----------------------------------------------------------
 
 {-
 練習問題: ★★, optional (currying)
@@ -272,6 +288,7 @@ curry-uncurry : ∀{x y z} {X : Set x} {Y : Set y} {Z : Set z} →
                 prod-uncurry (prod-curry f) p ≡ f p
 curry-uncurry f (x , y) = refl
 
+---- フィルター (Filter)関数 --------------------------------------------------
 
 filter : ∀{x} {X : Set x} → (X → Bool) → list X → list X
 filter p [] = []
@@ -303,6 +320,7 @@ test-countoddmembers'2 = refl
 test-countoddmembers'3 : countoddmembers' [] ≡ 0
 test-countoddmembers'3 = refl
 
+---- 無名（匿名）関数 ---------------------------------------------------------
 
 test-anon-fun' : doit3times (λ n → n * n) 2 ≡ 256
 test-anon-fun' = refl
@@ -347,6 +365,8 @@ test-partition1 : partition odd (1 ∷ 2 ∷ 3 ∷ 4 ∷ 5 ∷ []) ≡ (1 ∷ 3 
 test-partition1 = refl
 test-partition2 : partition (λ _ → false) (5 ∷ 9 ∷ 0 ∷ []) ≡ ([] , 5 ∷ 9 ∷ 0 ∷ [])
 test-partition2 = refl
+
+---- マップ（Map）関数 --------------------------------------------------------
 
 map : ∀{x y} {X : Set x} {Y : Set y} → (X → Y) → list X → list Y
 map f [] = []
@@ -433,6 +453,8 @@ Main> :typeOf fold (_+_)
 list ℕ → ℕ → ℕ
 -}
 
+---- 畳み込み（Fold）関数 -----------------------------------------------------
+
 fold-example1 : fold (_*_) (1 ∷ 2 ∷ 3 ∷ 4 ∷ []) 1 ≡ 24
 fold-example1 = refl
 fold-example2 : fold (_∧_) (true ∷ true ∷ false ∷ true ∷ []) true ≡ false
@@ -446,6 +468,8 @@ fold-example3 = refl
 fold関数がXとY二つの型引数をとっていて、関数fが型Xを引数にとり型Yを返すようになっていることに注目してください。XとYが別々の型となっていることで、どのような場合に便利であるかを考えてください。
 -}
 -- 略
+
+---- 関数を作成する関数 -------------------------------------------------------
 
 constfun : ∀{x} {X : Set x} → X → ℕ → X
 constfun x = λ _ → x
@@ -481,6 +505,10 @@ override-example : (b : Bool) → override (constfun b) 3 true 2 ≡ b
 override-example false = refl
 override-example true = refl
 
+-- さらにCoqについて ----------------------------------------------------------
+
+---- unfoldタクティック -------------------------------------------------------
+
 -- unfoldなにそれおいしいの？
 unfold-example : {m n : ℕ} → 3 + n ≡ m → plus3 n + 1 ≡ m + 1
 unfold-example eq = cong (λ a → a + 1) eq
@@ -513,6 +541,7 @@ override-neq x1 x2 k1 k2 f fk1≡x1 k1≠k2 =
   where
     open Relation.Binary.PropositionalEquality.≡-Reasoning
 
+---- 反転（Inversion） --------------------------------------------------------
 
 -- まぁ，仮定をバッファしておく所があるわけじゃないのでinversion的なものは無いよな…
 -- てことはデストラクトに相当する操作でcongするのが定石？
@@ -588,6 +617,8 @@ length-snoc' v [] (suc _) ()
 length-snoc' v (x ∷ xs) 0 ()
 length-snoc' v (x ∷ xs) (suc n) eq = cong suc (length-snoc' v xs n (eq-add-S {length xs} {n} eq))
 
+------ 練習問題 ---------------------------------------------------------------
+
 {-
 練習問題: ★★, optional (practice)
 
@@ -612,6 +643,8 @@ double-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 eq
     ind = double-injective {n} {m}
     drop-suc1 = eq-add-S {suc (double n)} {suc (double m)}
     drop-suc2 = eq-add-S {double n} {double m}
+
+---- タクティックを仮定に使用する ---------------------------------------------
 
 -- ?
 S-inj : (n m : ℕ) → (b : Bool) → ℕ-eq (suc n) (suc m) ≡ b → ℕ-eq n m ≡ b
@@ -660,6 +693,7 @@ n+n-injective {suc n} {suc m} eq = cong suc $ ind $ drop-suc2 $ drop-suc1 $ toSS
     drop-suc2 = eq-add-S {n + n} {m + m}
     toSS = subst₂ (_≡_) (Sn+Sn≡SSn+n {n}) (Sn+Sn≡SSn+n {m})
 
+---- destructを複合式で使う ---------------------------------------------------
 
 sillyfun : ℕ → Bool
 sillyfun n = if ℕ-eq n 3
@@ -732,6 +766,7 @@ split-combine (x ∷ xs , y ∷ ys) eq = cong pm (split-combine (xs , ys) (tail-
     tail-length-equiv eq = eq-add-S {length xs} {length ys} (∷≡∷→suc≡suc eq)
     pm = prod-map (_∷_ x) (_∷_ y)
 
+---- rememberタクティック -----------------------------------------------------
 
 sillyfun1 : ℕ → Bool
 sillyfun1 n = if ℕ-eq n 3
@@ -805,6 +840,7 @@ filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
     assert2 (inj₂ (eq1 , eq2)) = filter-exercise test x ys lf eq2
     assert2 (inj₁ (eq1 , eq2)) = sym (eq1 ⟨ trans ⟩ cong test (head-inversion y x (filter test ys) lf eq2))
 
+---- apply ... with ...タクティック -------------------------------------------
 
 -- おぁ？trans解禁しちゃってるから要領も何もだな
 trans-eq-example : {a b c d e f : ℕ} →
@@ -877,6 +913,10 @@ override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
         open import Data.Bool.Properties using (not-¬)
         k2≡k1 = sym $ ℕ-eq-trans {k2} {k3} {k1} eq2 (eq1 ⟨ trans ⟩ ℕ-eq-sym k1 k3)
         k2≢k1 = sym eq
+
+-- まとめ ---------------------------------------------------------------------
+
+-- さらなる練習問題 -----------------------------------------------------------
 
 {-
 練習問題: ★★, optional (fold_length)
