@@ -293,3 +293,141 @@ data foo {x y} (X : Set x) (Y : Set y) : Set (x ⊔ y) where
 -- 略
 
 ---- 帰納法の仮定 -------------------------------------------------------------
+
+---- 偶数について再び ---------------------------------------------------------
+data ev : nat → Set where
+  ev-0 : ev O
+  ev-SS : {n : nat} → ev n → ev (S (S n))
+
+
+{-
+練習問題: ★, optional (four_ev)
+
+4が偶数であることをタクティックによる証明と証明オブジェクトによる証明で示しなさい。
+-}
+four-ev : ev 4
+four-ev = ev-SS (ev-SS ev-0)
+
+{-
+練習問題: ★★ (ev_plus4)
+
+n が偶数ならば 4+n も偶数であることをタクティックによる証明と証明オブジェクトによる証明で示しなさい。
+-}
+ev-plus4 : ∀ n → ev n → ev (4 + n)
+ev-plus4 n evn = ev-SS (ev-SS evn)
+
+{-
+練習問題: ★★ (double_even)
+
+次の命題をタクティックによって証明しなさい。
+-}
+double-even : ∀ n → ev (double n)
+double-even = nat-ind (λ n₁ → ev (double n₁)) ev-0 (λ n₁ → ev-SS)
+
+{-
+練習問題: ★★★★, optional (double_even_pfobj)
+
+上記のタクティックによる証明でどのような証明オブジェクトが構築されるかを予想しなさい。 (答を確かめる前に、Case を除去しましょう。 これがあると証明オブジェクトが少し見づらくなります。)
+-}
+-- 略
+
+---- 根拠に対する帰納法の推論 -------------------------------------------------
+
+-- ev-minus2 n evn = ? で c-c c-l してから
+-- c-c evn で evn を destruct して，
+-- あとは各ゴールで c-c c-a
+ev-minus2 : ∀ n → ev n → ev (pred (pred n))
+ev-minus2 .0 ev-0 = ev-0
+ev-minus2 .(S (S n)) (ev-SS {n} evn) = evn
+
+{-
+練習問題: ★ (ev_minus2_n)
+
+E の代わりに n に対して destruct するとどうなるでしょうか?
+-}
+-- 略
+
+ev-even : ∀ n → ev n → even n
+ev-even .0 ev-0 = refl
+ev-even .(S (S n)) (ev-SS {n} evn) = ev-even n evn
+
+{-
+練習問題: ★ (ev_even_n)
+
+この証明を E でなく n に対する帰納法として実施できますか?
+-}
+-- 奇数で⊥になるので，全てのnでそうなることを示すnの帰納法ではできない
+
+{-
+練習問題: ★ (l_fails)
+
+次の証明はうまくいきません。
+
+     Theorem l : ∀ n,
+       ev n.
+     Proof.
+       intros n. induction n.
+         Case "O". simpl. apply ev_0.
+         Case "S".
+           ...
+
+理由を簡潔に説明しない。
+-}
+-- 奇数がevじゃないから定理が間違ってる
+
+{-
+練習問題: ★★ (ev_sum)
+
+帰納法が必要な別の練習問題をやってみましょう。
+-}
+ev-sum : ∀ n m → ev n → ev m → ev (n + m)
+ev-sum .0 m ev-0 evm = evm
+ev-sum .(S (S n)) m (ev-SS {n} evn) evm = ev-SS (ev-sum n m evn evm)
+
+
+SSev-even : ∀ n → ev (S (S n)) → ev n
+SSev-even n (ev-SS evSSn) = evSSn
+
+{-
+練習問題: ★ (inversion_practice)
+-}
+SSSSev-even : ∀ n → ev (S (S (S (S n)))) → ev n
+SSSSev-even n (ev-SS (ev-SS evSSSSn)) = evSSSSn
+
+
+
+even5-nonsense : ev 5 → 2 + 2 ≡ 9
+even5-nonsense (ev-SS (ev-SS ()))
+
+{-
+練習問題: ★★★ (ev_ev_even)
+
+何に対して帰納法を行えばいいかを探しなさい。(ちょっとトリッキーですが)
+-}
+-- ev n だね
+ev-ev-even : ∀ n m → ev (n + m) → ev n → ev m
+ev-ev-even .0 m evn+m ev-0 = evn+m
+ev-ev-even .(S (S n)) m evn+m (ev-SS {n} evn) = ev-ev-even n m (SSev-even (n + m) evn+m) evn
+
+{-
+練習問題: ★★★, optional (ev_plus_plus)
+
+既存の補題を適用する必要のある練習問題です。 帰納法も場合分けも不要ですが、書き換えのうちいくつかはちょっと大変です。 Basics_J.v の plus_swap' で使った replace タクティックを使うとよいかもしれません。
+-}
+ev-plus-plus : ∀ n m p → ev (n + m) → ev (n + p) → ev (m + p)
+ev-plus-plus n m p evn+m evn+p = ev-ev-even (n + n) (m + p) evn+n+m+p evn+n
+  where
+    evn+n+m+p : ev (n + n + (m + p))
+    evn+n+m+p
+      rewrite sym (plus-assoc n n (m + p))
+            | plus-assoc n m p
+            | plus-comm n m
+            | sym (plus-assoc m n p)
+            | plus-assoc n m (n + p)
+            = ev-sum (n + m) (n + p) evn+m evn+p
+    evn+n : ev (n + n)
+    evn+n
+      rewrite sym (double-plus n)
+            = double-even n
+
+---- なぜ命題を帰納的に定義するのか? ------------------------------------------
