@@ -5,7 +5,8 @@ open import Level
 open import Function
 -- open import Data.Bool
 -- open import Data.Nat
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; cong; cong₂; trans; subst)
+import Relation.Binary.PropositionalEquality as PropEq
+open PropEq using (_≡_; refl; sym; cong; trans)
 
 open import Basics-J
 open import Poly-J
@@ -431,3 +432,340 @@ ev-plus-plus n m p evn+m evn+p = ev-ev-even (n + n) (m + p) evn+n+m+p evn+n
             = double-even n
 
 ---- なぜ命題を帰納的に定義するのか? ------------------------------------------
+data MyProp : nat → Set where
+  MyProp1 : MyProp 4
+  MyProp2 : ∀ n → MyProp n → MyProp (4 + n)
+  MyProp3 : ∀ n → MyProp (2 + n) → MyProp n
+
+MyProp-ten : MyProp 10
+MyProp-ten = MyProp2 (S (S (S (S (S (S O))))))
+               (MyProp2 (S (S O)) (MyProp3 (S (S O)) MyProp1))
+
+{-
+練習問題: ★★ (MyProp)
+
+MyPropに関する便利な2つの事実があります。 証明はあなたのために残してあります。
+-}
+MyProp-0 : MyProp 0
+MyProp-0 = MyProp3 O (MyProp3 (S (S O)) MyProp1)
+
+MyProp-plustwo : ∀ n → MyProp n → MyProp (S (S n))
+MyProp-plustwo n propn = MyProp3 (S (S n)) (MyProp2 n propn)
+
+-- 奇数？偶数だよね？
+MyProp-ev : ∀ n → ev n → MyProp n
+MyProp-ev .0 ev-0 = MyProp-0
+MyProp-ev .(S (S n)) (ev-SS {n} evn) = MyProp-plustwo n $ MyProp-ev n evn
+
+{-
+練習問題: ★★★ (ev_MyProp)
+-}
+ev-MyProp : ∀ n → MyProp n → ev n
+ev-MyProp .4 MyProp1 = ev-SS (ev-SS ev-0)
+ev-MyProp .(S (S (S (S n)))) (MyProp2 n propn) = ev-SS (ev-SS (ev-MyProp n propn))
+ev-MyProp n (MyProp3 .n propn) = ev-minus2 (S (S n)) (ev-MyProp (S (S n)) propn)
+
+{-
+練習問題: ★★★, optional (ev_MyProp_informal)
+-}
+-- 略
+
+
+-- 全体像: Coqの2つの空間 -----------------------------------------------------
+
+---- 値 -----------------------------------------------------------------------
+
+---- 帰納的定義 ---------------------------------------------------------------
+
+---- 型とカインド -------------------------------------------------------------
+
+---- 命題 vs. ブール値 --------------------------------------------------------
+
+---- 関数 vs. 限量子 ----------------------------------------------------------
+
+---- 関数 vs. 含意 ------------------------------------------------------------
+
+-- 非形式的な証明 -------------------------------------------------------------
+
+---- 帰納法による非形式的な証明 -----------------------------------------------
+
+------ 帰納的に定義された集合についての帰納法 ---------------------------------
+
+------ 帰納的に定義された命題についての帰納法 ---------------------------------
+
+-- 選択課題 -------------------------------------------------------------------
+
+---- induction タクティックについてもう少し -----------------------------------
+{-
+練習問題: ★, optional (plus_explicit_prop)
+
+plus_assoc' と plus_comm' を、その証明とともに上の mult_0_r'' と 同じスタイルになるよう書き直しなさい。このことは、それぞれの定理が 帰納法で証明された命題に明確な定義を与え、この定義された命題から定理と 証明を示しています。
+-}
+plus-assoc' : ∀ n m p → n + (m + p) ≡ (n + m) + p
+plus-assoc' n = nat-ind (λ n → ∀ m p → n + (m + p) ≡ (n + m) + p) base step n
+  where
+    base = λ m p → refl
+    step : ∀ n  → (∀ m p → n + (m + p) ≡ (n + m) + p) → (∀ m p → S n + (m + p) ≡ (S n + m) + p)
+    step n eq m p
+      rewrite eq m p
+            = refl
+
+plus-comm' : ∀ n m → n + m ≡ m + n
+plus-comm' n = nat-ind (λ n → ∀ m → n + m ≡ m + n) base step n
+  where
+    base = sym ∘ n+O≡n
+    step : ∀ n → (∀ m → n + m ≡ m + n) → (∀ m → S n + m ≡ m + S n)
+    step n eq m
+      rewrite eq m
+            | plus-n-Sm m n
+            = refl
+
+{-
+練習問題: ★★★★, optional (true_upto_n__true_everywhere)
+
+true_upto_n_example を満たすような再帰関数 true_upto_n__true_everywhere を定義しなさい。
+-}
+-- true_upto_n_example？
+
+---- Prop における帰納法の原理 ------------------------------------------------
+
+{-
+練習問題: ★★★, optional (prop_ind)
+
+帰納的に定義された list と MyProp に対し、Coq がどのような帰納法の原理を 生成するか、予想して書き出し、次の行を実行した結果と比較しなさい。
+-}
+-- 略
+
+{-
+練習問題: ★★★, optional (ev_MyProp')
+
+もう一度 ev_MyProp を証明しなさい。ただし、今度は induction タクティックの代わりに apply MyProp_ind を使いなさい。
+-}
+-- 略
+
+{-
+練習問題: ★★★★, optional (MyProp_pfobj)
+
+もう一度 MyProp_ev と ev_MyProp を証明しなさい。ただし今度は、明確な 証明オブジェクトを手作業で構築（上の ev_plus4 でやったように）することで 証明しなさい。
+-}
+-- 略
+
+-- このへんAgda的にはあんまり
+
+{-
+練習問題: ★★★, optional (p_provability)
+
+次の、帰納的に定義された命題について考えてみてください。：
+
+  Inductive p : (tree nat) → nat → Prop :=
+    c1 : ∀ n, p (leaf _ n) 1
+    c2 : ∀ t1 t2 n1 n2, p t1 n1 → p t2 n2 → p (node _ t1 t2) (n1 + n2)
+    c3 : ∀ t n, p t n → p t (S n).
+
+これについて、どのような時に p t n が証明可能であるか、その 条件をを自然言語で説明しなさい。
+-}
+-- tree t 任意のnodeかleafにおいて，対応するnがその子孫の要素の数以上
+
+-- 追加練習問題 ---------------------------------------------------------------
+
+{-
+練習問題: ★★★★ (palindromes)
+
+palindrome（回文）は、最初から読んでも逆から読んでも同じになるような シーケンスです。
+
+list X でパラメータ化され、それが palindrome であることを示すような帰納的
+
+命題 pal を定義しなさい。（ヒント：これには三つのケースが必要です。この定義は、 リストの構造に基いたものとなるはずです。まず一つのコンストラクタ、
+
+   c : ∀ l, l = rev l → pal l
+
+ は明らかですが、これはあまりうまくいきません。）
+-}
+data pal {x} {X : Set x} : list X → Set x where
+  pal-nil : pal []
+  pal-singleton : ∀ x → pal (x ∷ [])
+  pal-cons : ∀ x ls → pal ls → pal (x ∷ snoc ls x)
+{-
+
+ 以下を証明しなさい。
+
+   ∀ l, pal (l ++ rev l).
+-}
+pal-l++rev-l : ∀ {x} {X : Set x} → (ls : list X) → pal (ls ++ rev ls)
+pal-l++rev-l [] = pal-nil
+pal-l++rev-l (x ∷ ls)
+  rewrite sym (snoc-with-append x ls (rev ls))
+        = pal-cons x (ls ++ rev ls) (pal-l++rev-l ls)
+{-
+
+ 以下を証明しなさい。
+
+   ∀ l, pal l → l = rev l.
+-}
+pal-l→l≡rev-l : ∀ {x} {X : Set x} → (ls : list X) → pal ls → ls ≡ rev ls
+pal-l→l≡rev-l .[] pal-nil = refl
+pal-l→l≡rev-l .(x ∷ []) (pal-singleton x) = refl
+pal-l→l≡rev-l .(x ∷ snoc ls x) (pal-cons x ls palls)
+  rewrite rev-snoc x ls
+        | sym (pal-l→l≡rev-l ls palls)
+        = refl
+
+{-
+練習問題: ★★★★★, optional (palindrome_converse)
+
+一つ前の練習問題で定義した pal を使って、これを証明しなさい。
+     ∀ l, l = rev l → pal l.
+-} -- l₁ ∷ l₂ ∷ ls ≡ a ∷ snoc xs b → a ≡ b ∧ xs ≡ rev xs
+private
+  module Proof where
+    last : ∀ {x} {X : Set x} → (xs : list X) → beq-nat 0 (length xs) ≡ false → X
+    last [] ()
+    last (x ∷ []) refl = x
+    last (_ ∷ x' ∷ xs) refl = last (x' ∷ xs) refl
+    init : ∀ {x} {X : Set x} → (xs : list X) → beq-nat 0 (length xs) ≡ false → list X
+    init [] ()
+    init (_ ∷ []) refl = []
+    init (x ∷ x' ∷ xs) refl = x ∷ init (x' ∷ xs) refl
+    length-snoc : ∀ {x} {X : Set x} →
+                  (l : X) → (ls : list X) →
+                  beq-nat 0 (length (snoc ls l)) ≡ false
+    length-snoc _ [] = refl
+    length-snoc _ (_ ∷ _) = refl
+    length-init : ∀ {x} {X : Set x} → (x : X) → (xs : list X) →
+                  length (init (x ∷ xs) refl) ≡ length xs
+    length-init _ [] = refl
+    length-init _ (x₁ ∷ xs) = cong S (length-init _ xs)
+    xs→snoc-init-xs-last-xs : ∀ {x} {X : Set x} → (xs : list X) → (eq : beq-nat 0 (length xs) ≡ false) → xs ≡ snoc (init xs eq) (last xs eq)
+    xs→snoc-init-xs-last-xs [] ()
+    xs→snoc-init-xs-last-xs (x ∷ []) refl = refl
+    xs→snoc-init-xs-last-xs (x ∷ x' ∷ xs) refl = cong (_∷_ x) $ xs→snoc-init-xs-last-xs (x' ∷ xs) refl
+    head-inversion : ∀{x} {X : Set x} →
+                     (a b : X) → (as bs : list X) →
+                     a ∷ as ≡ b ∷ bs → a ≡ b
+    head-inversion .b b .bs bs refl = refl
+    tail-inversion : ∀{x} {X : Set x} →
+                     (a b : X) → (as bs : list X) →
+                     a ∷ as ≡ b ∷ bs → as ≡ bs
+    tail-inversion .b b .bs bs refl = refl
+    rev-snoc-commute-rev-cons : ∀{x} {X : Set x} → (n : X) (ls : list X) → rev (snoc ls n) ≡ n ∷ rev ls
+    rev-snoc-commute-rev-cons n [] = refl
+    rev-snoc-commute-rev-cons n (x ∷ xs) = cong (λ as → snoc as x) (rev-snoc-commute-rev-cons n xs)
+    rev-involutive : ∀{x} {X : Set x} → (l : list X) → rev (rev l) ≡ l
+    rev-involutive [] = refl
+    rev-involutive (x ∷ xs)
+      rewrite rev-snoc-commute-rev-cons x (rev xs)
+            | rev-involutive xs
+            = refl
+    rev-injective : ∀{x} {X : Set x} → (l1 l2 : list X) → rev l1 ≡ rev l2 → l1 ≡ l2
+    rev-injective xs ys eq = rev-injective' (cong rev eq)
+      where
+        rev-injective' : rev (rev xs) ≡ rev (rev ys) → xs ≡ ys
+        rev-injective' eq
+          rewrite rev-involutive xs
+                | rev-involutive ys
+                = eq
+
+    -- 止まんねー
+    l≡rev-l→pal-l : ∀ {x} {X : Set x} →
+                    (ls : list X) → ls ≡ rev ls → pal ls
+    l≡rev-l→pal-l [] eq = pal-nil
+    l≡rev-l→pal-l (x₁ ∷ []) eq = pal-singleton x₁
+    l≡rev-l→pal-l (x₁ ∷ x₂ ∷ xs) eq
+      rewrite cong (λ as → rev (x₁ ∷ as)) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
+            | rev-snoc (last (x₂ ∷ xs) refl) (init (x₂ ∷ xs) refl)
+            | cong (λ as → x₁ ∷ as) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
+            | sym (head-inversion _ _ _ _ eq)
+            = pal-cons x₁ init-xs $
+              l≡rev-l→pal-l init-xs $ -- initだから小さくなってることがわからないのか
+              rev-injective init-xs (rev init-xs) $
+              tail-inversion last-xs x₁ _ _ $
+              (sym (rev-snoc last-xs init-xs) ⟨ trans ⟩
+               cong rev (tail-inversion _ _ _ _ eq) ⟨ trans ⟩
+               rev-snoc x₁ (rev init-xs))
+      where
+        init-xs = init (x₂ ∷ xs) refl
+        last-xs = last (x₂ ∷ xs) refl
+
+l≡rev-l→pal-l = Proof.l≡rev-l→pal-l
+
+{-
+練習問題: ★★★★ (subsequence)
+
+あるリストが、別のリストのサブシーケンス（ subsequence ）であるとは、 最初のリストの要素が全て二つ目のリストに同じ順序で現れるということです。 ただし、その間に何か別の要素が入ってもかまいません。例えば、
+
+    [1,2,3]
+
+は、次のいずれのリストのサブシーケンスでもあります。
+
+    [1,2,3]
+    [1,1,1,2,2,3]
+    [1,2,7,3]
+    [5,6,1,9,9,2,7,3,8]
+
+しかし、次のいずれのリストのサブシーケンスでもありません。
+
+    [1,2]
+    [1,3]
+    [5,6,2,1,7,3,8]
+
+list nat 上に、そのリストがサブシーケンスであることを意味するような命題 subseq を定義しなさい。（ヒント：三つのケースが必要になります）
+-}
+data subseq : list nat → list nat → Set where
+  subseq-nil : subseq [] []
+  subseq-seq : ∀ {ss xs} x → subseq ss xs → subseq ss (x ∷ xs)
+  subseq-both : ∀ {ss xs} x → subseq ss xs → subseq (x ∷ ss) (x ∷ xs)
+{-
+サブシーケンスである、という関係が「反射的」であることを証明しなさい。つまり、どのようなリストも、それ自身のサブシーケンスであるということです。
+-}
+subseq-refl : ∀ xs → subseq xs xs
+subseq-refl [] = subseq-nil
+subseq-refl (x ∷ xs) = subseq-both x (subseq-refl xs)
+{-
+任意のリスト l1、 l2、 l3 について、もし l1 が l2 のサブシーケンスならば、 l1 は l2 ++ l3 のサブシーケンスでもある、ということを証明しなさい。.
+-}
+app-nil : ∀{x} {X : Set x} →
+          (l : list X) → l ++ [] ≡ l
+app-nil [] = refl
+app-nil (x₁ ∷ xs) = cong (_∷_ x₁) (app-nil xs)
+
+subseq-++ : ∀ l1 l2 l3 → subseq l1 l2 → subseq l1 (l2 ++ l3)
+subseq-++ l1 l2 [] ss
+  rewrite app-nil l2
+        = ss
+subseq-++ .[] .[] (x ∷ l3) subseq-nil = subseq-seq x (subseq-++ [] [] l3 subseq-nil)
+subseq-++ l1 .(x₁ ∷ xs) (x ∷ l3) (subseq-seq {.l1} {xs} x₁ ss) = subseq-seq x₁ (subseq-++ l1 xs (x ∷ l3) ss)
+subseq-++ .(x₁ ∷ ss) .(x₁ ∷ xs) (x ∷ l3) (subseq-both {ss} {xs} x₁ ss₁) = subseq-both x₁ (subseq-++ ss xs (x ∷ l3) ss₁)
+{-
+（これは少し難しいですので、任意とします）サブシーケンスという関係は推移的である、つまり、 l1 が l2 のサブシーケンスであり、 l2 が l3 のサブシーケンスであるなら、 l1 は l3 のサブシーケンスである、というような関係であることを証明しなさい。（ヒント：何について帰納法を適用するか、よくよく注意して下さい。）
+-}
+-- 全部c-c c-aだった
+subseq-trans : ∀ l1 l2 l3 → subseq l1 l2 → subseq l2 l3 → subseq l1 l3
+subseq-trans .[] .[] l3 subseq-nil ss23 = ss23
+subseq-trans l1 .(x ∷ xs) .(x₁ ∷ xs₁) (subseq-seq {.l1} {xs} x ss12) (subseq-seq {.(x ∷ xs)} {xs₁} x₁ ss23) = subseq-seq x₁
+                                                                                                                (subseq-trans l1 (x ∷ xs) xs₁ (subseq-seq x ss12) ss23)
+subseq-trans l1 .(x ∷ xs) .(x ∷ xs₁) (subseq-seq {.l1} {xs} x ss12) (subseq-both {.xs} {xs₁} .x ss23) = subseq-seq x (subseq-trans l1 xs xs₁ ss12 ss23)
+subseq-trans .(x ∷ ss) .(x ∷ xs) .(x₁ ∷ xs₁) (subseq-both {ss} {xs} x ss12) (subseq-seq {.(x ∷ xs)} {xs₁} x₁ ss23) = subseq-seq x₁
+                                                                                                                       (subseq-trans (x ∷ ss) (x ∷ xs) xs₁ (subseq-both x ss12) ss23)
+subseq-trans .(x ∷ ss) .(x ∷ xs) .(x ∷ xs₁) (subseq-both {ss} {xs} x ss12) (subseq-both {.xs} {xs₁} .x ss23) = subseq-both x (subseq-trans ss xs xs₁ ss12 ss23)
+
+{-
+練習問題: ★★, optional (foo_ind_principle)
+-}
+-- 略
+
+{-
+練習問題: ★★, optional (bar_ind_principle)
+-}
+-- 略
+
+{-
+練習問題: ★★, optional (no_longer_than_ind)
+-}
+-- 略
+
+{-
+練習問題: ★★, optional (R_provability)
+-}
+-- Rは「リスト長が数値以上の何か」なので証明可能なのは．
+-- R 2 [1,0]
+-- R 1 [1,2,1,0]

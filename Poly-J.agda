@@ -35,30 +35,30 @@ _A_32 → list _A_32 → list _A_32
 Main> :typeOf 1 ∷ 2 ∷ []
 list ℕ
 -}
+private
+  length' : ∀{x} (X : Set x) → list X → nat
+  length' X [] = 0
+  length' X (_ ∷ xs) = 1 + length' X xs
 
-length' : ∀{x} (X : Set x) → list X → nat
-length' X [] = 0
-length' X (_ ∷ xs) = 1 + length' X xs
+  test-length'1 : length' nat (1 ∷ 2 ∷ []) ≡ 2
+  test-length'1 = refl
 
-test-length'1 : length' nat (1 ∷ 2 ∷ []) ≡ 2
-test-length'1 = refl
+  app' : ∀{x} (X : Set x) → list X → list X → list X
+  app' X [] ys = ys
+  app' X (x ∷ xs) ys = x ∷ app' X xs ys
 
-app' : ∀{x} (X : Set x) → list X → list X → list X
-app' X [] ys = ys
-app' X (x ∷ xs) ys = x ∷ app' X xs ys
+  snoc' : ∀{x} (X : Set x) → list X → X → list X
+  snoc' X [] n = [ n ]
+  snoc' X (x ∷ xs) n = x ∷ snoc' X xs n
 
-snoc' : ∀{x} (X : Set x) → list X → X → list X
-snoc' X [] n = [ n ]
-snoc' X (x ∷ xs) n = x ∷ snoc' X xs n
+  rev' : ∀{x} (X : Set x) → list X → list X
+  rev' X [] = []
+  rev' X (x ∷ xs) = snoc' X (rev' X xs) x
 
-rev' : ∀{x} (X : Set x) → list X → list X
-rev' X [] = []
-rev' X (x ∷ xs) = snoc' X (rev' X xs) x
-
-test-rev'1 : rev' nat (1 ∷ 2 ∷ []) ≡ 2 ∷ 1 ∷ []
-test-rev'1 = refl
-test-rev'2 : rev' bool [] ≡ []
-test-rev'2 = refl
+  test-rev'1 : rev' nat (1 ∷ 2 ∷ []) ≡ 2 ∷ 1 ∷ []
+  test-rev'1 = refl
+  test-rev'2 : rev' bool [] ≡ []
+  test-rev'2 = refl
 
 ------ 型推論 -----------------------------------------------------------------
 -- 略
