@@ -666,6 +666,7 @@ private
                 = eq
 
     -- 止まんねー
+{-
     l≡rev-l→pal-l : ∀ {x} {X : Set x} →
                     (ls : list X) → ls ≡ rev ls → pal ls
     l≡rev-l→pal-l [] eq = pal-nil
@@ -687,6 +688,7 @@ private
         last-xs = last (x₂ ∷ xs) refl
 
 l≡rev-l→pal-l = Proof.l≡rev-l→pal-l
+-}
 
 {-
 練習問題: ★★★★ (subsequence)
