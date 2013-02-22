@@ -665,30 +665,41 @@ private
                 | rev-involutive ys
                 = eq
 
-    -- 止まんねー
-{-
+    length-init-x∷xs≡S-length-xs : ∀ {x} {X : Set x} → (x : X) → (xs : list X) →
+                                   (eq : beq-nat 0 (length (x ∷ xs)) ≡ false) →
+                                   length (init (x ∷ xs) eq) ≡ length xs
+    length-init-x∷xs≡S-length-xs x₁ [] refl = refl
+    length-init-x∷xs≡S-length-xs x₁ (x₂ ∷ xs) refl
+      rewrite length-init-x∷xs≡S-length-xs x₂ xs refl
+            = refl
+
     l≡rev-l→pal-l : ∀ {x} {X : Set x} →
-                    (ls : list X) → ls ≡ rev ls → pal ls
-    l≡rev-l→pal-l [] eq = pal-nil
-    l≡rev-l→pal-l (x₁ ∷ []) eq = pal-singleton x₁
-    l≡rev-l→pal-l (x₁ ∷ x₂ ∷ xs) eq
+                    (n : nat) → (ls : list X) → length ls ≡ n → ls ≡ rev ls → pal ls
+    l≡rev-l→pal-l n [] len eq = pal-nil
+    l≡rev-l→pal-l n (x₁ ∷ []) len eq = pal-singleton x₁
+    l≡rev-l→pal-l O (x₁ ∷ x₂ ∷ xs) () eq
+    l≡rev-l→pal-l (S O) (x₁ ∷ x₂ ∷ xs) () eq
+    l≡rev-l→pal-l (S (S n)) (x₁ ∷ x₂ ∷ xs) len eq
       rewrite cong (λ as → rev (x₁ ∷ as)) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
             | rev-snoc (last (x₂ ∷ xs) refl) (init (x₂ ∷ xs) refl)
             | cong (λ as → x₁ ∷ as) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
             | sym (head-inversion _ _ _ _ eq)
             = pal-cons x₁ init-xs $
-              l≡rev-l→pal-l init-xs $ -- initだから小さくなってることがわからないのか
+              l≡rev-l→pal-l n init-xs length-init-xs≡n $
               rev-injective init-xs (rev init-xs) $
               tail-inversion last-xs x₁ _ _ $
               (sym (rev-snoc last-xs init-xs) ⟨ trans ⟩
                cong rev (tail-inversion _ _ _ _ eq) ⟨ trans ⟩
                rev-snoc x₁ (rev init-xs))
       where
+        length-init-xs≡n = length-init-x∷xs≡S-length-xs x₂ xs refl ⟨ trans ⟩
+                           eq-add-S (eq-add-S len)
         init-xs = init (x₂ ∷ xs) refl
         last-xs = last (x₂ ∷ xs) refl
 
-l≡rev-l→pal-l = Proof.l≡rev-l→pal-l
--}
+l≡rev-l→pal-l : ∀ {x} {X : Set x} →
+                (ls : list X) → ls ≡ rev ls → pal ls
+l≡rev-l→pal-l ls = Proof.l≡rev-l→pal-l (length ls) ls refl
 
 {-
 練習問題: ★★★★ (subsequence)
