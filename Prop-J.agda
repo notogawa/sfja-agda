@@ -626,11 +626,6 @@ private
     init [] ()
     init (_ ∷ []) refl = []
     init (x ∷ x' ∷ xs) refl = x ∷ init (x' ∷ xs) refl
-    length-snoc : ∀ {x} {X : Set x} →
-                  (l : X) → (ls : list X) →
-                  beq-nat 0 (length (snoc ls l)) ≡ false
-    length-snoc _ [] = refl
-    length-snoc _ (_ ∷ _) = refl
     length-init : ∀ {x} {X : Set x} → (x : X) → (xs : list X) →
                   length (init (x ∷ xs) refl) ≡ length xs
     length-init _ [] = refl
