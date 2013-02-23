@@ -3,7 +3,7 @@ module Logic-J where
 open import Level
 open import Function
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; refl; sym; cong; trans)
+open PropEq using (_≡_; _≢_; refl; sym; cong; trans)
 
 open import Basics-J
 open import Poly-J
@@ -259,14 +259,27 @@ postulate
   de-morgan-not-and-not : ∀ {x y} {P : Set x} {Q : Set y} → ~ ((~ P) × (~ Q)) → P ⊎ Q
   implies_to_or : ∀ {x y} {P : Set x} {Q : Set y} → (P → Q) → ((~ P) ⊎ Q)
 -}
-excluded-middle→peirce : ∀ {x y} {P : Set x} {Q : Set y} → ((P → Q) → P) → P
-excluded-middle→peirce {P = P} {Q} pp = assert excluded-middle
+either : ∀ {x y z} {P : Set x} {Q : Set y} {R : Set z} → (P → R) → (Q → R) → P ⊎ Q → R
+either P→R Q→R (inj₁ p) = P→R p
+either P→R Q→R (inj₂ q) = Q→R q
+
+excluded-middle→classic : ∀ {x} {P : Set x} → ~ (~ P) → P
+excluded-middle→classic {P = P} ~~P = either (λ p → p) (ex-falso-quodlibet P ∘ ~~P) excluded-middle
   where
     postulate
       excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
-    assert : P ⊎ ~ P → P
-    assert (inj₁ p) = p
-    assert (inj₂ ¬p) = pp (ex-falso-quodlibet Q ∘ ¬p)
+
+classic→excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
+classic→excluded-middle {P = P} = classic (λ z → z (inj₂ (z ∘ inj₁)))
+  where
+    postulate
+      classic : ∀ {x} {P : Set x} → ~ (~ P) → P
+
+excluded-middle→peirce : ∀ {x y} {P : Set x} {Q : Set y} → ((P → Q) → P) → P
+excluded-middle→peirce {P = P} {Q} pp = either (λ p → p) (λ ~p → pp (ex-falso-quodlibet Q ∘ ~p)) excluded-middle
+  where
+    postulate
+      excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
 
 peirce→excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
 peirce→excluded-middle = peirce (λ z → inj₂ (λ x → z (inj₁ x)))
@@ -275,16 +288,28 @@ peirce→excluded-middle = peirce (λ z → inj₂ (λ x → z (inj₁ x)))
       peirce : ∀ {x y} {P : Set x} {Q : Set y} → ((P → Q) → P) → P
 
 excluded-middle→implies_to_or : ∀ {x y} {P : Set x} {Q : Set y} → (P → Q) → ((~ P) ⊎ Q)
-excluded-middle→implies_to_or {P = P} {Q} pq = assert excluded-middle
+excluded-middle→implies_to_or {P = P} {Q} pq = either (inj₂ ∘ pq) inj₁ excluded-middle
   where
     postulate
       excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
-    assert : P ⊎ ~ P → ((~ P) ⊎ Q)
-    assert (inj₁ p) = inj₂ (pq p)
-    assert (inj₂ ¬p) = inj₁ ¬p
 
 implies_to_or→excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
-implies_to_or→excluded-middle {P = P} = or-commut $ implies_to_or {P = P} {P} (λ z → z)
+implies_to_or→excluded-middle = or-commut $ implies_to_or (λ z → z)
   where
     postulate
       implies_to_or : ∀ {x y} {P : Set x} {Q : Set y} → (P → Q) → ((~ P) ⊎ Q)
+
+de-morgan-not-and-not→classic : ∀ {x} {P : Set x} → ~ (~ P) → P
+de-morgan-not-and-not→classic {P = P} ~~P = either (λ z → z) (λ z → z) $
+                                            de-morgan-not-and-not (~~P ∘ proj₁)
+  where
+    postulate
+      de-morgan-not-and-not : ∀ {x y} {P : Set x} {Q : Set y} → ~ ((~ P) × (~ Q)) → P ⊎ Q
+
+classic→de-morgan-not-and-not : ∀ {x y} {P : Set x} {Q : Set y} → ~ ((~ P) × (~ Q)) → P ⊎ Q
+classic→de-morgan-not-and-not = classic ∘ contrapositive (λ z → (z ∘ inj₁ , z ∘ inj₂))
+  where
+    postulate
+      classic : ∀ {x} {P : Set x} → ~ (~ P) → P
+
+---- 不等であるということ -----------------------------------------------------
