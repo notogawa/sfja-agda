@@ -68,6 +68,8 @@ conj-fact : ∀ {x y z} {P : Set x} {Q : Set y} {R : Set z} → P × Q → Q × 
 conj-fact (p , _) (_ , r) = (p , r)
 
 ---- Iff （両含意） -----------------------------------------------------------
+infix 3 _↔_
+
 _↔_ : ∀ {x y} → Set x → Set y → Set (x ⊔ y)
 P ↔ Q = (P → Q) × (Q → P)
 
@@ -347,3 +349,78 @@ beq-false-not-eq (S n) O eq = λ ()
 beq-false-not-eq (S n) (S m) eq = beq-false-not-eq n m eq ∘ eq-add-S
 
 -- 存在量化子 -----------------------------------------------------------------
+
+data ∃ {x y} {X : Set x} (P : X → Set y) : Set (x ⊔ y) where
+  ex-intro : (witness : X) → P witness → ∃ P
+
+some-nat-is-even : ∃ λ n → ev n
+some-nat-is-even = ex-intro 4 (ev-SS (ev-SS ev-0))
+
+-- 標準ライブラリの∃使うのがいいけどね．
+-- open import Data.Product using (∃)
+
+exists-example-1 : ∃ λ n → n + (n * n) ≡ 6
+exists-example-1 = ex-intro 2 refl
+
+-- 標準ライブラリの∃使った場合は，
+-- open import Data.Product using (∃)
+-- exists-example-1 : ∃ λ n → n + (n * n) ≡ 6
+-- exists-example-1 = 2 , refl
+-- と，(満たす値 ，根拠) の組が証明オブジェクト
+-- だから "Data.Product" に入っている．
+
+exists-example-2 : ∀ n → (∃ λ m → n ≡ 4 + m) → (∃ λ o → n ≡ 2 + o)
+--exists-example-2 n H = ? として，c-c c-c H
+--exists-example-2 n (ex-intro witness x) = ? になるので c-c c-aで終わり
+exists-example-2 n (ex-intro witness x) = ex-intro (S (S witness)) x
+
+{-
+練習問題: ★ (english_exists)
+
+英語では、以下の命題は何を意味しているでしょうか？
+      ex nat (fun n => ev (S n))
+-}
+-- 略
+{-
+次の証明オブジェクトの定義を完成させなさい
+-}
+p : ∃ λ n → ev (S n)
+p = ex-intro 1 (ev-SS ev-0)
+
+{-
+練習問題: ★ (dist_not_exists)
+
+"全ての x についてP が成り立つ" ということと " P を満たさない x は 存在しない" ということが等価であることを証明しなさい。
+-}
+dist-not-exists : ∀ {x y} (X : Set x) (P : X → Set y) →
+                  (∀ x → P x) → ~ (∃ λ x → ~ P x)
+dist-not-exists X P fa (ex-intro witness x₁) = x₁ (fa witness)
+
+{-
+練習問題: ★★★, optional (not_exists_dist)
+
+一方、古典論理の「排中律（law of the excluded middle）」が必要とされる 場合もあります。
+-}
+not-exists-dist : ∀ {x y} (X : Set x) (P : X → Set y) →
+                  ~ (∃ λ x → ~ P x) → (∀ x → P x)
+not-exists-dist X P ~ex a = either (λ z → z) (ex-falso-quodlibet (P a) ∘ ~ex ∘ ex-intro a) (excluded-middle {P = P a})
+  where
+    postulate
+      excluded-middle : ∀ {x} {P : Set x} → P ⊎ ~ P
+{-
+練習問題: ★★ (dist_exists_or)
+
+存在量化子が論理和において分配法則を満たすことを証明しなさい。
+-}
+dist-exists-or : ∀ {x y} (X : Set x) (P Q : X → Set y) →
+                 (∃ λ x → P x ⊎ Q x) ↔ ((∃ λ x → P x) ⊎ (∃ λ x → Q x))
+dist-exists-or X P Q = left , right
+  where
+    left : (∃ λ x → P x ⊎ Q x) → ((∃ λ x → P x) ⊎ (∃ λ x → Q x))
+    left (ex-intro witness (inj₁ x)) = inj₁ (ex-intro witness x)
+    left (ex-intro witness (inj₂ x)) = inj₂ (ex-intro witness x)
+    right : ((∃ λ x → P x) ⊎ (∃ λ x → Q x)) → (∃ λ x → P x ⊎ Q x)
+    right (inj₁ (ex-intro witness x)) = ex-intro witness (inj₁ x)
+    right (inj₂ (ex-intro witness x)) = ex-intro witness (inj₂ x)
+
+-- 等しいということ（同値性） -------------------------------------------------
