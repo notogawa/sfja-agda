@@ -3,7 +3,7 @@ module Logic-J where
 open import Level
 open import Function
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; _≢_; refl; sym; cong; trans)
+open PropEq using (_≡_; refl; sym; cong; trans)
 
 open import Basics-J
 open import Poly-J
@@ -98,6 +98,8 @@ MyProp-iff-ev n = ev-MyProp n , MyProp-ev n
 
 -- 論理和、選言（Disjunction、OR） --------------------------------------------
 
+infixr 1 _⊎_
+
 data _⊎_ {a b} (A : Set a) (B : Set b) : Set (a ⊔ b) where
   inj₁ : A → A ⊎ B
   inj₂ : B → A ⊎ B
@@ -191,6 +193,8 @@ record True : Set where
   constructor tt
 
 -- 否定 -----------------------------------------------------------------------
+
+infix 3 ~_
 
 ~_ : ∀ {x} → Set x → Set x
 ~ P = P → False
@@ -313,3 +317,33 @@ classic→de-morgan-not-and-not = classic ∘ contrapositive (λ z → (z ∘ in
       classic : ∀ {x} {P : Set x} → ~ (~ P) → P
 
 ---- 不等であるということ -----------------------------------------------------
+
+_≢_ : ∀ {a} {A : Set a} → A → A → Set a
+x ≢ y = ~ (x ≡ y)
+
+not-false-then-true : (b : bool) → b ≢ false → b ≡ true
+not-false-then-true b b≢f = either (λ z → z) (ex-falso-quodlibet (b ≡ true) ∘ b≢f) (b≡t⊎b≡f b)
+  where
+    b≡t⊎b≡f : ∀ b → b ≡ true ⊎ b ≡ false
+    b≡t⊎b≡f true = inj₁ refl
+    b≡t⊎b≡f false = inj₂ refl
+
+{-
+練習問題: ★★, recommended (not_eq_beq_false)
+-}
+not-eq-beq-false : (n n' : nat) → n ≢ n' → beq-nat n n' ≡ false
+not-eq-beq-false O O n≢n' = ex-falso-quodlibet (beq-nat O O ≡ false) (n≢n' refl)
+not-eq-beq-false O (S n') n≢n' = refl
+not-eq-beq-false (S n) O n≢n' = refl
+not-eq-beq-false (S n) (S n') n≢n' = not-eq-beq-false n n' (n≢n' ∘ cong S)
+
+{-
+練習問題: ★★, optional (beq_false_not_eq)
+-}
+beq-false-not-eq : (n m : nat) → false ≡ beq-nat n m → n ≢ m
+beq-false-not-eq O O ()
+beq-false-not-eq O (S m) eq = λ ()
+beq-false-not-eq (S n) O eq = λ ()
+beq-false-not-eq (S n) (S m) eq = beq-false-not-eq n m eq ∘ eq-add-S
+
+-- 存在量化子 -----------------------------------------------------------------
