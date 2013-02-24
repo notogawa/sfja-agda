@@ -424,3 +424,199 @@ dist-exists-or X P Q = left , right
     right (inj₂ (ex-intro witness x)) = ex-intro witness (inj₂ x)
 
 -- 等しいということ（同値性） -------------------------------------------------
+module MyEquality where
+
+  data eq {a} {A : Set a} : A → A → Set a where
+    refl-equal : ∀ x → eq x x
+
+  -- Agda標準ライブラリの_≡_もこっちだね
+  data eq' {a} {X : Set a} (x : X) : X → Set a where
+    refl-equal' : eq' x x
+
+  {-
+  練習問題: ★★★, optional (two_defs_of_eq_coincide)
+
+  これら二つの定義が等価であることを確認しなさい。
+  -}
+  two-defs-of-eq-coincide : ∀ {a} (X : Set a) (x y : X) →
+                            eq x y ↔ eq' x y
+  two-defs-of-eq-coincide X x y = left x y , right x y
+    where
+      left : (x y : X) → eq x y → eq' x y
+      left .y₁ y₁ (refl-equal .y₁) = refl-equal'
+      right : (x y : X) → eq' x y → eq x y
+      right .y₁ y₁ refl-equal' = refl-equal y₁
+
+  four : eq (2 + 2) (1 + 3)
+  four = refl-equal 4
+
+---- Inversion 再び -----------------------------------------------------------
+
+-- 命題としての関係 -----------------------------------------------------------
+module LeFirstTry where
+
+  data _≤_ : nat → nat → Set where
+    le-n : ∀ n → n ≤ n
+    le-S : ∀ n m → n ≤ m → n ≤ (S m)
+
+data _≤_ (n : nat) : nat → Set where
+  le-n : n ≤ n
+  le-S : ∀ {m} → n ≤ m → n ≤ S m
+
+test-le1 : 3 ≤ 3
+test-le1 = le-n
+
+test-le2 : 3 ≤ 6
+test-le2 = le-S (le-S (le-S le-n))
+
+test-le3 : ~ (2 ≤ 1)
+test-le3 (le-S ())
+
+_<_ : ∀ n m → Set
+n < m = S n ≤ m
+
+data square-of : nat → nat → Set where
+  sq : ∀ n → square-of n (n * n)
+
+data next-nat (n : nat) : nat → Set where
+  nn : next-nat n (S n)
+
+data next-even (n : nat) : nat → Set where
+  ne-1 : ev (S n) → next-even n (S n)
+  ne-2 : ev (S (S n)) → next-even n (S (S n))
+
+{-
+練習問題: ★★, recommended (total_relation)
+
+二つの自然数のペア同士の間に成り立つ帰納的な関係 total_relation を 定義しなさい。
+-}
+-- ? どういうこと ?
+
+{-
+練習問題: ★★ (empty_relation)
+
+自然数の間では決して成り立たない関係 empty_relation を帰納的に 定義しなさい。
+-}
+-- ? なんでもいいの ?
+
+{-
+練習問題: ★★★, recommended (R_provability)
+
+次は三つや四つの値の間に成り立つ関係を同じように定義してみましょう。 例えば、次のような数値の三項関係が考えられます。
+-}
+module R where
+  data R : nat → nat → nat → Set where
+    c1 : R 0 0 0
+    c2 : ∀ {m n o} → R m n o → R (S m) n (S o)
+    c3 : ∀ {m n o} → R m n o → R m (S n) (S o)
+    c4 : ∀ {m n o} → R (S m) (S n) (S (S o)) → R m n o
+    c5 : ∀ {m n o} → R m n o → R n m o
+
+{-
+次の命題のうち、この関係を満たすと証明できると言えるのはどれでしょうか。
+-}
+-- R 1 1 2
+  test1 : R 1 1 2
+  test1 = c2 (c3 c1)
+-- Rはn+m=oと保つため． R 2 2 6 を満たす証明オブジェクトは作れない．
+{-
+この関係 R の定義からコンストラクタ c5 を取り除くと、証明可能な命題の範囲はどのように変わるでしょうか？端的に（１文で）説明しなさい。
+-}
+-- 変わらない．
+{-
+この関係 R の定義からコンストラクタ c4 を取り除くと、証明可能な命題の範囲はどのように変わるでしょうか？端的に（１文で）説明しなさい。
+-}
+-- 変わらない．
+
+{-
+練習問題: ★★★, optional (R_fact)
+
+関係 R の、等値性に関する特性をあげ、それを証明しなさい。 それは、 もし R m n o が true なら m についてどんなことが言えるでしょうか？ n や o についてはどうでしょうか？その逆は？
+-}
+  R-fact : ∀ m n o → R m n o ↔ m + n ≡ o
+  R-fact m n o = left m n o , right m n o
+    where
+      left : ∀ m n o → R m n o → m + n ≡ o
+      left .0 .0 .0 c1 = refl
+      left .(S m₁) n₁ .(S o₁) (c2 {m₁} {.n₁} {o₁} Rmno)
+        rewrite left m₁ n₁ o₁ Rmno
+              = refl
+      left m₁ .(S n₁) .(S o₁) (c3 {.m₁} {n₁} {o₁} Rmno)
+        rewrite sym (left m₁ n₁ o₁ Rmno)
+              | plus-assoc m₁ 1 n₁
+              | plus-comm m₁ 1
+              = refl
+      left m₁ n₁ o₁ (c4 Rmno) =
+        eq-add-S $ eq-add-S (sym (cong (S ∘ S) (plus-comm n₁ m₁)) ⟨ trans ⟩
+                             sym (cong S (plus-comm m₁ (S n₁))) ⟨ trans ⟩
+                             left (S m₁) (S n₁) (S (S o₁)) Rmno)
+      left m₁ n₁ o₁ (c5 Rmno)
+        rewrite plus-comm m₁ n₁
+              | left n₁ m₁ o₁ Rmno
+              = refl
+      right : ∀ m n o → m + n ≡ o → R m n o
+      right O O .0 refl = c1
+      right O (S n₁) .(S n₁) refl = c3 (right 0 n₁ n₁ refl)
+      right (S m₁) n₁ .(S (plus m₁ n₁)) refl = c2 (right m₁ n₁ (m₁ + n₁) refl)
+
+{-
+練習問題: ★★★, recommended (all_forallb)
+
+リストに関する属性 all を定義しなさい。それは、型 X と属性 P : X → Prop をパラメータとし、 all X P l が「リスト l の全ての要素が 属性 P} を満たす」とするものです。
+-}
+data all {a} {X : Set a} (P : X → Set a) : list X → Set a where
+  all-nil : all P []
+  all-cons : ∀ x xs → P x → all P xs → all P (x ∷ xs)
+
+all-forallb : ∀ {X : Set} (xs : list X) test →
+              all (λ x → test x ≡ true) xs ↔ forallb test xs ≡ true
+all-forallb xs test = left xs test , right xs test
+  where
+    left : ∀ {X : Set} (xs : list X) test →
+           all (λ x → test x ≡ true) xs → forallb test xs ≡ true
+    left .[] test all-nil = refl
+    left .(x ∷ xs) test (all-cons x xs Px all)
+      rewrite Px
+            | left xs test all
+            = refl
+    right : ∀ {X : Set} (xs : list X) test →
+            forallb test xs ≡ true → all (λ x → test x ≡ true) xs
+    right [] test₁ fa = all-nil
+    right (x ∷ xs₁) test₁ fa = all-cons x xs₁ (proj₁ assert) (right xs₁ test₁ (proj₂ assert))
+      where
+        assert = andb-true-and (test₁ x) (forallb test₁ xs₁) fa
+
+{-
+練習問題: ★★★★, optional (filter_challenge)
+
+Coq の主な目的の一つは、プログラムが特定の仕様を満たしていることを 証明することです。それがどういうことか、filter 関数の定義が仕様を満たすか証明 してみましょう。まず、その関数の仕様を非形式的に書き出してみます。
+
+集合 X と関数 test: X→bool、リストl とその型 list X を想定する。 さらに、l が二つのリスト l1 と l2 が順序を維持したままマージされたもので、 リスト l1 の要素はすべて test を満たし、 l2 の要素はすべて満たさないと すると、filter test l = l1 が成り立つ。
+
+課題は、この仕様をCoq の定理の形に書き直し、それを証明することです。 （ヒント：まず、一つのりすとが二つのリストをマージしたものとなっている、 ということを示す定義を書く必要がありますが、これは帰納的な関係であって、 Fixpoint で書くようなものではありません。）
+-}
+data merge {a} {X : Set a} : list X → list X → list X → Set a where
+  merge-nil : merge [] [] []
+  merge-cons1 : ∀ x as bs xs → merge as bs xs → merge (x ∷ as) bs (x ∷ xs)
+  merge-cons2 : ∀ x as bs xs → merge as bs xs → merge as (x ∷ bs) (x ∷ xs)
+
+filter-challenge : ∀ {X : Set} (l1 l2 ls : list X) test →
+                   merge l1 l2 ls →
+                   all (λ x → test x ≡ true) l1 →
+                   all (λ x → test x ≡ false) l2 →
+                   filter test ls ≡ l1
+filter-challenge .[] .[] .[] test merge-nil al1 al2 = refl
+filter-challenge .(x ∷ as) l2 .(x ∷ xs) test (merge-cons1 x as .l2 xs m) (all-cons .x .as Px al1) al2
+  rewrite Px
+        | filter-challenge as l2 xs test m al1 al2
+        = refl
+filter-challenge l1 .(x ∷ bs) .(x ∷ xs) test (merge-cons2 x .l1 bs xs m) al1 (all-cons .x .bs Px al2)
+  rewrite Px
+        | filter-challenge l1 bs xs test m al1 al2
+        = refl
+
+{-
+練習問題: ★★★★★, optional (filter_challenge_2)
+
+filter の振る舞いに関する特性を別の切り口で表すとこうなります。 「test の結果が true なる要素だけでできた、リスト l の すべての部分リストの中で、filter test l が最も長いリストである。」 これを形式的に記述し、それを証明しなさい。
+-}
