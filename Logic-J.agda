@@ -779,3 +779,44 @@ ble-nat-false : ∀ n m → ble-nat n m ≡ false → ~ (n ≤ m)
 ble-nat-false O m ()
 ble-nat-false (S n) O ble = λ ()
 ble-nat-false (S n) (S m) ble = ble-nat-false n m ble ∘ Sn≤Sm→n≤m n m
+
+{-
+練習問題: ★★★, recommended (nostutter)
+
+述語の帰納的な定義を定式化できるようになるというのは、これから先の学習に 必要なスキルになってきます。
+
+この練習問題は、何の力も借りず自力で解いてください。 もし誰かの力を借りてしまった場合は、そのことをコメントに書いておいて ください。
+
+同じ数値が連続して現れるリストを "stutters" （どもったリスト）と 呼ぶことにします。述語 "nostutter mylist" は、 mylist が「どもった リスト」でないことを意味しています。nostutter の帰納的な定義を記述しなさい。 （これは以前の練習問題に出てきた no_repeats という述語とは異なるものです。 リスト 1,4,1 は repeats ではありますが stutter ではありません。）
+-}
+data stutter : list nat → Set where
+  st-here : ∀ {x xs} → stutter (x ∷ x ∷ xs)
+  st-later : ∀ {x xs} → stutter xs → stutter (x ∷ xs)
+
+data nostutter : list nat → Set where
+  nost : ∀ {xs} → ~ stutter xs → nostutter xs
+{-
+できた定義が、以下のテストを通過することを確認してください。 通過できないものがあったら、定義を修正してもかまいません。 あなたの書いた定義が、正しくはあるけれど私の用意した模範解答と異なって いるかもしれません。その場合、このテストを通過するために別の 証明を用意する必要があります。
+
+以下の Example にコメントとして提示された証明には、色々な種類の nostutter の定義に対応できるようにするため、まだ説明していない タクティックがいくつか使用されています。 まずこれらのコメントをはずしただけの 状態で確認できればいいのですが、もしそうしたいなら、これらの証明をもっと 基本的なタクティックで書き換えて証明してもかまいません。
+-}
+test-nostutter-1 : nostutter (3 ∷ 1 ∷ 4 ∷ 1 ∷ 5 ∷ 6 ∷ [])
+test-nostutter-1 = nost assert
+  where
+    assert : ~ stutter (3 ∷ 1 ∷ 4 ∷ 1 ∷ 5 ∷ 6 ∷ [])
+    assert (st-later (st-later (st-later (st-later (st-later (st-later ()))))))
+
+test-nostutter-2 : nostutter []
+test-nostutter-2 = nost assert
+  where
+    assert : ~ stutter []
+    assert ()
+
+test-nostutter-3 : nostutter (5 ∷ [])
+test-nostutter-3 = nost assert
+  where
+    assert : ~ stutter (5 ∷ [])
+    assert (st-later ())
+
+test-nostutter-4 : ~ nostutter (3 ∷ 1 ∷ 1 ∷ 4 ∷ [])
+test-nostutter-4 (nost x) = x (st-later st-here)
