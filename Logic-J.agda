@@ -620,3 +620,90 @@ filter-challenge l1 .(x ∷ bs) .(x ∷ xs) test (merge-cons2 x .l1 bs xs m) al1
 
 filter の振る舞いに関する特性を別の切り口で表すとこうなります。 「test の結果が true なる要素だけでできた、リスト l の すべての部分リストの中で、filter test l が最も長いリストである。」 これを形式的に記述し、それを証明しなさい。
 -}
+data sublist {a} {X : Set a}: list X → list X → Set a where
+  sublist-nil : sublist [] []
+  sublist-seq : ∀ {ss xs} x → sublist ss xs → sublist ss (x ∷ xs)
+  sublist-both : ∀ {ss xs} x → sublist ss xs → sublist (x ∷ ss) (x ∷ xs)
+
+filter-challenge-2 : ∀ {X : Set} (ls ss : list X) test →
+                     all (λ x → test x ≡ true) ls →
+                     sublist ss ls →
+                     length ss ≤ length (filter test ls)
+filter-challenge-2 .[] .[] test all sublist-nil = le-n
+filter-challenge-2 .(x ∷ xs) ss test (all-cons .x .xs Px all) (sublist-seq {.ss} {xs} x sub)
+  rewrite Px
+        = le-S (filter-challenge-2 xs ss test all sub)
+filter-challenge-2 .(x ∷ xs) .(x ∷ ss) test (all-cons .x .xs Px all) (sublist-both {ss} {xs} x sub)
+  rewrite Px
+        = n≤m→Sn≤Sm (filter-challenge-2 xs ss test all sub)
+  where
+    n≤m→Sn≤Sm : ∀ {n m} → n ≤ m → S n ≤ S m
+    n≤m→Sn≤Sm le-n = le-n
+    n≤m→Sn≤Sm (le-S n≤m) = le-S (n≤m→Sn≤Sm n≤m)
+
+{-
+練習問題: ★★★★, optional (no_repeats)
+
+次の、帰納的に定義された命題を見て、
+
+Inductive appears_in {X:Type} (a:X) : list X → Prop :=
+  | ai_here : ∀ l, appears_in a (a::l)
+  | ai_later : ∀ b l, appears_in a l → appears_in a (b::l).
+
+値 a が、少なくとも一度はリスト l の中に現れるということを、 厳密に表現する方法を考えなさい。
+-}
+data appears-in {x} {X : Set x} (a : X) : list X → Set x where
+  ai-here : ∀ ls → appears-in a (a ∷ ls)
+  ai-later : ∀ b ls → appears-in a ls → appears-in a (b ∷ ls)
+{-
+appears_in に関するウォームアップ問題としてもう一つ、
+-}
+appears-in-app : ∀ {a} {X : Set a} (xs ys : list X) (x : X) →
+                 appears-in x (xs ++ ys) → appears-in x xs ⊎ appears-in x ys
+appears-in-app [] .(x ∷ ls) x (ai-here ls) = inj₂ (ai-here ls)
+appears-in-app [] .(b ∷ ls) x (ai-later b ls appin) = inj₂ (ai-later b ls appin)
+appears-in-app (x ∷ xs) ys .x (ai-here .(xs ++ ys)) = inj₁ (ai-here xs)
+appears-in-app (x ∷ xs) ys x₁ (ai-later .x .(xs ++ ys) appin) with appears-in-app xs ys x₁ appin
+appears-in-app (x₂ ∷ xs) ys x₁ (ai-later .x₂ .(xs ++ ys) appin) | inj₁ x = inj₁ (ai-later x₂ xs x)
+appears-in-app (x₂ ∷ xs) ys x₁ (ai-later .x₂ .(xs ++ ys) appin) | inj₂ x = inj₂ x
+
+app-appears-in : ∀ {a} {X : Set a} (xs ys : list X) (x : X) →
+                 appears-in x xs ⊎ appears-in x ys → appears-in x (xs ++ ys)
+app-appears-in .(x ∷ ls) ys x (inj₁ (ai-here ls)) = ai-here (ls ++ ys)
+app-appears-in .(b ∷ ls) ys x (inj₁ (ai-later b ls in-xs)) = ai-later b (ls ++ ys) (app-appears-in ls ys x (inj₁ in-xs))
+app-appears-in [] .(x ∷ ls) x (inj₂ (ai-here ls)) = ai-here ls
+app-appears-in (x ∷ xs) .(x₁ ∷ ls) x₁ (inj₂ (ai-here ls)) = ai-later x (xs ++ x₁ ∷ ls) (app-appears-in xs (x₁ ∷ ls) x₁ (inj₂ (ai-here ls)))
+app-appears-in [] .(b ∷ ls) x (inj₂ (ai-later b ls in-ys)) = ai-later b ls in-ys
+app-appears-in (x ∷ xs) .(b ∷ ls) x₁ (inj₂ (ai-later b ls in-ys)) = ai-later x (xs ++ b ∷ ls) (app-appears-in xs (b ∷ ls) x₁ (inj₂ (ai-later b ls in-ys)))
+
+{-
+では、 appears_in を使って命題 disjoint X l1 l2 を定義してください。 これは、型 X の二つのリスト l1 、 l2 が共通の要素を持たない場合 にのみ証明可能な命題です。
+-}
+disjoint : ∀ {a} {X : Set a} (l1 l2 : list X) → Set a
+disjoint l1 l2 = ∀ x → (appears-in x l1 → ~ appears-in x l2) × (appears-in x l2 → ~ appears-in x l1)
+
+{-
+次は、 appears_in を使って帰納的な命題 no_repeats X l を定義して ください。これは, 型 X のリスト l の中のどの要素も、他の要素と 異なっている場合のみ証明できるような命題です。例えば、 no_repeats nat [1,2,3,4] や no_repeats bool [] は証明可能ですが、 no_repeats nat [1,2,1] や no_repeats bool [true,true] は証明 できないようなものです。
+-}
+no-repeats : ∀ {a} {X : Set a} (ls : list X) → Set a
+no-repeats {X = X} [] = X
+no-repeats (x ∷ ls) = (~ appears-in x ls) × no-repeats ls
+
+{-
+最後に、disjoint、 no_repeats、 ++ （リストの結合）の三つを使った、 何か面白い定理を考えて、それを証明してください。
+-}
+no-repeats-disjoint-is-no-repeats : ∀ {a} {X : Set a} (xs ys : list X) →
+                                    no-repeats xs →
+                                    no-repeats ys →
+                                    disjoint xs ys →
+                                    no-repeats (xs ++ ys)
+no-repeats-disjoint-is-no-repeats [] ys nr-xs nr-ys disj = nr-ys
+no-repeats-disjoint-is-no-repeats {X = X} (x ∷ xs) ys nr-xs nr-ys disj = (left ∘ appears-in-app xs ys x) , right
+  where
+    left : appears-in x xs ⊎ appears-in x ys → False
+    left (inj₁ x₁) = proj₁ nr-xs x₁
+    left (inj₂ x₁) = proj₁ (disj x) (ai-here xs) x₁
+    right : no-repeats (xs ++ ys)
+    right = no-repeats-disjoint-is-no-repeats xs ys (proj₂ nr-xs) nr-ys (λ x₁ → (λ x₂ x₃ → proj₁ (disj x₁) (ai-later x xs x₂) x₃) , (λ x₂ x₃ → proj₁ (disj x₁) (ai-later x xs x₃) x₂))
+
+---- 少し脱線: <= と < についてのさらなる事実 ---------------------------------
