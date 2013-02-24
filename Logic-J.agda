@@ -459,6 +459,8 @@ module LeFirstTry where
     le-n : ∀ n → n ≤ n
     le-S : ∀ n m → n ≤ m → n ≤ (S m)
 
+infix 4 _≤_
+
 data _≤_ (n : nat) : nat → Set where
   le-n : n ≤ n
   le-S : ∀ {m} → n ≤ m → n ≤ S m
@@ -471,6 +473,8 @@ test-le2 = le-S (le-S (le-S le-n))
 
 test-le3 : ~ (2 ≤ 1)
 test-le3 (le-S ())
+
+infix 4 _<_
 
 _<_ : ∀ n m → Set
 n < m = S n ≤ m
@@ -707,3 +711,71 @@ no-repeats-disjoint-is-no-repeats {X = X} (x ∷ xs) ys nr-xs nr-ys disj = (left
     right = no-repeats-disjoint-is-no-repeats xs ys (proj₂ nr-xs) nr-ys (λ x₁ → (λ x₂ x₃ → proj₁ (disj x₁) (ai-later x xs x₂) x₃) , (λ x₂ x₃ → proj₁ (disj x₁) (ai-later x xs x₃) x₂))
 
 ---- 少し脱線: <= と < についてのさらなる事実 ---------------------------------
+
+{-
+練習問題: ★★, optional (le_exercises)
+-}
+0≤n : ∀ n → 0 ≤ n
+0≤n O = le-n
+0≤n (S n) = le-S (0≤n n)
+
+n≤m→Sn≤Sm : ∀ n m → n ≤ m → S n ≤ S m
+n≤m→Sn≤Sm .m m le-n = le-n
+n≤m→Sn≤Sm n .(S m) (le-S {m} n≤m) = le-S (n≤m→Sn≤Sm n m n≤m)
+
+Sn≤Sm→n≤m : ∀ n m → S n ≤ S m → n ≤ m
+Sn≤Sm→n≤m .m m le-n = le-n
+Sn≤Sm→n≤m n O (le-S ())
+Sn≤Sm→n≤m n (S m) (le-S Sn≤Sm) = le-S (Sn≤Sm→n≤m n m Sn≤Sm)
+
+a≤a+b : ∀ a b → a ≤ a + b
+a≤a+b a O
+  rewrite n+O≡n a
+        = le-n
+a≤a+b a (S b)
+  rewrite plus-comm a (S b)
+        | plus-comm b a
+        = le-S (a≤a+b a b)
+
+n<m→n≤m : ∀ n m → n < m → n ≤ m
+n<m→n≤m n .(S n) le-n = le-S le-n
+n<m→n≤m n .(S m) (le-S {m} n<m) = le-S (n<m→n≤m n m n<m)
+
+plus-lt : ∀ n1 n2 m → n1 + n2 < m → n1 < m × n2 < m
+plus-lt = λ n1 n2 m n1+n2<m → left n1 n2 m n1+n2<m , right n1 n2 m n1+n2<m
+  where
+    left : ∀ n1 n2 m → n1 + n2 < m → n1 < m
+    left n1 O m n1+n2<m
+      rewrite n+O≡n n1
+            = n1+n2<m
+    left n1 (S n2) m n1+n2<m
+      rewrite plus-comm n1 (S n2)
+            | plus-comm n2 n1
+            = left n1 n2 m (n<m→n≤m (S (plus n1 n2)) m n1+n2<m)
+    right : ∀ n1 n2 m → n1 + n2 < m → n2 < m
+    right O n2 m n1+n2<m = n1+n2<m
+    right (S n1) n2 m n1+n2<m = right n1 n2 m (n<m→n≤m (S (plus n1 n2)) m n1+n2<m)
+
+n<m→n<Sm : ∀ n m → n < m → n < S m
+n<m→n<Sm n .(S n) le-n = le-S le-n
+n<m→n<Sm n .(S m) (le-S {m} n<m) = le-S (n<m→n<Sm n m n<m)
+
+ble-nat-true : ∀ n m → ble-nat n m ≡ true → n ≤ m
+ble-nat-true O m ble = 0≤n m
+ble-nat-true (S n) O ()
+ble-nat-true (S n) (S m) ble = n≤m→Sn≤Sm n m (ble-nat-true n m ble)
+
+≤→ble-nat-true : ∀ n m → n ≤ m → ble-nat n m ≡ true
+≤→ble-nat-true .m m le-n = sym (ble-nat-refl m)
+≤→ble-nat-true O .(S m) (le-S {m} n≤m) = refl
+≤→ble-nat-true (S n) .(S m) (le-S {m} n≤m) = ≤→ble-nat-true n m (Sn≤Sm→n≤m n m (le-S n≤m))
+
+ble-nat-n-Sn-false : ∀ n m → ble-nat n (S m) ≡ false → ble-nat n m ≡ false
+ble-nat-n-Sn-false O m ble = ble
+ble-nat-n-Sn-false (S n) O ble = refl
+ble-nat-n-Sn-false (S n) (S m) ble = ble-nat-n-Sn-false n m ble
+
+ble-nat-false : ∀ n m → ble-nat n m ≡ false → ~ (n ≤ m)
+ble-nat-false O m ()
+ble-nat-false (S n) O ble = λ ()
+ble-nat-false (S n) (S m) ble = ble-nat-false n m ble ∘ Sn≤Sm→n≤m n m
