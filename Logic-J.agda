@@ -820,3 +820,93 @@ test-nostutter-3 = nost assert
 
 test-nostutter-4 : ~ nostutter (3 ∷ 1 ∷ 1 ∷ 4 ∷ [])
 test-nostutter-4 (nost x) = x (st-later st-here)
+
+{-
+練習問題: ★★★★, optional (pigeonhole principle)
+
+「鳩の巣定理（ "pigeonhole principle" ）」は、「数えるあげる」という ことについての基本的な事実を提示しています。「もし n 個の鳩の巣に n 個より多い数のものを入れようとするなら、どのような入れ方をしても いくつかの鳩の巣には必ず一つ以上のものが入ることになる。」というもので、 この、数値に関する見るからに自明な事実を証明するにも、なかなか自明とは言えない 手段が必要になります。我々は既にそれを知っているのですが...
+
+まず、補題を二つほど証明しておきます。（既に数値のリストについては 証明済みのものですが、任意のリストについてはのものはまだないので）
+-}
+app-length : ∀ {a} {X : Set a} (l1 l2 : list X) →
+             length (l1 ++ l2) ≡ length l1 + length l2
+app-length [] l2 = refl
+app-length (x ∷ l1) l2
+  rewrite app-length l1 l2
+        = refl
+
+appears-in-app-split : ∀ {a} {X : Set a} (x : X) (l : list X) →
+                       appears-in x l → ∃ λ l1 → ∃ λ l2 → l ≡ l1 ++ (x ∷ l2)
+appears-in-app-split x .(x ∷ ls) (ai-here ls) = ex-intro [] (ex-intro ls refl)
+appears-in-app-split x .(b ∷ ls) (ai-later b ls appin) with appears-in-app-split x ls appin
+appears-in-app-split x .(b ∷ ls) (ai-later b ls appin) | ex-intro witness (ex-intro witness₁ x₁) = ex-intro (b ∷ witness) (ex-intro witness₁ (cong (_∷_ b) x₁))
+{-
+そして、述語 repeats の定義をします（以前の練習問題 no_repeats に 類似したものです）。それは repeats X l が、「 l の中に少なくとも一組の 同じ要素（型 X の）を含む」という主張となるようなものです。
+-}
+data repeats {a} {X : Set a} : list X → Set a where
+  rep-here : ∀ x xs → appears-in x xs → repeats (x ∷ xs)
+  rep-later : ∀ x xs → repeats xs → repeats (x ∷ xs)
+{-
+この「鳩の巣定理」を定式化する方法を一つ挙げておきましょう。 リスト l2 が鳩の巣に貼られたラベルの一覧を、リスト l1 はそのラベルの、 アイテムへの割り当ての一覧を表しているとします。もしラベルよりも沢山の アイテムがあったならば、少なくとも二つのアイテムに同じラベルが貼られている ことになります。おそらくこの証明には「排中律（ excluded_middle ）」が 必要になるでしょう。
+-}
+pigeonhole-principle : ∀ {a} {X : Set a} (l1 l2 : list X) →
+                       (∀ {x} {P : Set x} → P ⊎ ~ P) →
+                       (∀ x → appears-in x l1 → appears-in x l2) →
+                       length l2 < length l1 → repeats l1
+pigeonhole-principle [] l2 em app→app ()
+pigeonhole-principle (l ∷ l1) l2 em app→app l2<l1
+  with em {P = appears-in l l1}
+     | appears-in-app-split l l2 (app→app l (ai-here l1))
+pigeonhole-principle (l ∷ l1) l2 em app→app l2<l1 | inj₁ P | appin = rep-here l l1 P
+pigeonhole-principle {X = X} (l ∷ l1) .(ws₁ ++ l ∷ ws₂) em app→app l2<l1 | inj₂ ~P | ex-intro ws₁ (ex-intro ws₂ refl)
+  rewrite app-length ws₁ (l ∷ ws₂)
+        | plus-comm (length ws₁) (S (length ws₂))
+        | plus-comm (length ws₂) (length ws₁)
+        | sym (app-length ws₁ ws₂)
+  = rep-later l l1
+      (pigeonhole-principle l1 (ws₁ ++ ws₂) em assert
+       (Sn≤Sm→n≤m (S (length (ws₁ ++ ws₂))) (length l1) l2<l1))
+  where
+    assert : ∀ (x : X) → appears-in x l1 → appears-in x (ws₁ ++ ws₂)
+    assert x with em {P = x ≡ l}
+    assert x | inj₁ x≡l
+      rewrite x≡l
+            = ex-falso-quodlibet _ ∘ ~P
+    assert x | inj₂ x≢l = assert' x≢l ∘ app→app x ∘ ai-later l l1
+      where
+        later-only : ∀ {a} {X : Set a} (x : X) y → x ≢ y → ∀ ys →
+                                      (appin : appears-in x (y ∷ ys)) →
+                                      ∃ λ appin' → appin ≡ ai-later y ys appin'
+        later-only .y y x≢y ys (ai-here .ys)
+          = ex-falso-quodlibet _ (x≢y refl)
+        later-only x₁ y x≢y ys (ai-later .y .ys appin₁)
+          = ex-intro appin₁ refl
+        assert' : x ≢ l → appears-in x (ws₁ ++ l ∷ ws₂) → appears-in x (ws₁ ++ ws₂)
+        assert' x≢l appin' with appears-in-app ws₁ (l ∷ ws₂) x appin'
+        assert' x≢l appin' | inj₁ x₁ = app-appears-in _ _ _ (inj₁ x₁)
+        assert' x≢l appin' | inj₂ x₁ = app-appears-in ws₁ _ _
+                                         (inj₂ (later (later-only x l x≢l ws₂ x₁)))
+          where
+            later : ∃ (λ appin'' → x₁ ≡ ai-later l ws₂ appin'') → appears-in x ws₂
+            later (ex-intro ws x₂) = ws
+
+-- 選択課題 -------------------------------------------------------------------
+
+---- ∧ や ∨ のための帰納法の原理 ----------------------------------------------
+
+{-
+練習問題: ★ (and_ind_principle)
+
+連言（ conjunction ）についての帰納法の原理を予想して、確認しなさい。
+-}
+-- 略
+
+{-
+練習問題: ★ (or_ind_principle)
+
+選言（ disjunction ）についての帰納法の原理を予想して、確認しなさい。
+-}
+-- 略
+
+------ 帰納法のための明白な証明オブジェクト -----------------------------------
+-- "証明式を 直接書いてしまえるなら、そうしたほうが簡単"だよねー
