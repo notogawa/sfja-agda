@@ -494,14 +494,15 @@ data next-even (n : nat) : nat → Set where
 
 二つの自然数のペア同士の間に成り立つ帰納的な関係 total_relation を 定義しなさい。
 -}
--- ? どういうこと ?
+data total-relation : nat → nat → Set where
+  tot : ∀ n m → total-relation n m
 
 {-
 練習問題: ★★ (empty_relation)
 
 自然数の間では決して成り立たない関係 empty_relation を帰納的に 定義しなさい。
 -}
--- ? なんでもいいの ?
+data empty-relation : nat → nat → Set where
 
 {-
 練習問題: ★★★, recommended (R_provability)
