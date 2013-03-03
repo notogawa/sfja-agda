@@ -3,17 +3,19 @@ module SfLib-J where
 -- Coq スタンダードライブラリから ---------------------------------------------
 -- とのことなので ここでAgda標準ライブラリのほうの定義を解禁
 open import Level as Level using ()
-open import Function
-open import Data.Nat
-open import Data.Bool
-open import Data.Product
-open import Data.Empty
-open import Data.List
-open import Relation.Nullary
-open import Relation.Binary
-open import Data.Maybe
+open import Function public
+open import Data.Nat public hiding (_≟_)
+open import Data.Bool public hiding (_≟_; decSetoid)
+open import Data.Product public hiding (map; zip)
+open import Data.Empty public
+open import Data.List public hiding (monad; monadPlus; monadZero)
+open import Data.Maybe public hiding (decSetoid; monad; monadPlus; monadZero)
+open import Relation.Nullary public
+open import Relation.Binary public
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq using (_≡_; _≢_; refl; cong; sym)
+open PropEq public using (_≡_; _≢_; refl; cong; sym)
+
+-- Require Export相当とはいえこのpublicの山は嫌過ぎる
 
 -- というか，Agdaで書き直してみる趣旨からすると．
 -- CoqのBool/List/Arith/Arith.EqNatあたりのモジュールの中身を
