@@ -166,3 +166,118 @@ optimize_0plusの変換がaexpの値を変えないことから、 bexpの値を
           = refl
 
 ---- omegaタクティック --------------------------------------------------------
+--- 甘え
+
+---- 便利なタクティックをさらにいくつか ---------------------------------------
+--- 甘え
+
+-- 関係としての評価 -----------------------------------------------------------
+  module aevalR-first-try where
+
+    data aevalR : aexp → ℕ → Set where
+      E-ANum : ∀ n → aevalR (ANum n) n
+      E-APlus : ∀ e1 e2 n1 n2 → aevalR e1 n1 → aevalR e2 n2 → aevalR (APlus e1 e2) (n1 + n2)
+      E-AMinus : ∀ e1 e2 n1 n2 → aevalR e1 n1 → aevalR e2 n2 → aevalR (AMinus e1 e2) (n1 ∸ n2)
+      E-AMult : ∀ e1 e2 n1 n2 → aevalR e1 n1 → aevalR e2 n2 → aevalR (AMult e1 e2) (n1 * n2)
+
+    _⇓_ = aevalR
+
+  data _aeval⇓_ : aexp → ℕ → Set where
+    E-ANum : ∀ n → ANum n aeval⇓ n
+    E-APlus : ∀ e1 e2 n1 n2 → e1 aeval⇓ n1 → e2 aeval⇓ n2 → APlus e1 e2 aeval⇓ (n1 + n2)
+    E-AMinus : ∀ e1 e2 n1 n2 → e1 aeval⇓ n1 → e2 aeval⇓ n2 → AMinus e1 e2 aeval⇓ (n1 ∸ n2)
+    E-AMult : ∀ e1 e2 n1 n2 → e1 aeval⇓ n1 → e2 aeval⇓ n2 → AMult e1 e2 aeval⇓ (n1 * n2)
+
+  open import Function.Equivalence hiding (sym)
+
+  aeval-iff-aeval⇓ : ∀ a n → (a aeval⇓ n) ⇔ aeval a ≡ n
+  aeval-iff-aeval⇓ = λ a n → equivalence (left a n) (right a n)
+    where
+      left : ∀ a n → a aeval⇓ n → aeval a ≡ n
+      left .(ANum b) b (E-ANum .b) = refl
+      left .(APlus e1 e2) .(n1 + n2) (E-APlus e1 e2 n1 n2 aaeval⇓n aaeval⇓n₁)
+        rewrite left e1 n1 aaeval⇓n
+              | left e2 n2 aaeval⇓n₁
+              = refl
+      left .(AMinus e1 e2) .(n1 ∸ n2) (E-AMinus e1 e2 n1 n2 aaeval⇓n aaeval⇓n₁)
+        rewrite left e1 n1 aaeval⇓n
+              | left e2 n2 aaeval⇓n₁
+              = refl
+      left .(AMult e1 e2) .(n1 * n2) (E-AMult e1 e2 n1 n2 aaeval⇓n aaeval⇓n₁)
+        rewrite left e1 n1 aaeval⇓n
+              | left e2 n2 aaeval⇓n₁
+              = refl
+      right : ∀ a n → aeval a ≡ n → a aeval⇓ n
+      right (ANum x) n eq
+        rewrite eq
+              = E-ANum n
+      right (APlus a a₁) n eq
+        rewrite sym eq
+              = E-APlus a a₁ (aeval a) (aeval a₁) (right a (aeval a) refl)
+                  (right a₁ (aeval a₁) refl)
+      right (AMinus a a₁) n eq
+        rewrite sym eq
+              = E-AMinus a a₁ (aeval a) (aeval a₁) (right a (aeval a) refl)
+                  (right a₁ (aeval a₁) refl)
+      right (AMult a a₁) n eq
+        rewrite sym eq
+              = E-AMult a a₁ (aeval a) (aeval a₁) (right a (aeval a) refl)
+                  (right a₁ (aeval a₁) refl)
+{-
+練習問題: ★★, optional (bevalR)
+
+関係bevalRをaevalRと同じスタイルで記述し、 それがbevalと同値であることを証明しなさい。
+-}
+  data _beval⇓_ : bexp → Bool → Set where
+    E-BTrue : BTrue beval⇓ true
+    E-BFalse : BFalse beval⇓ false
+    E-BEq : ∀ e1 e2 n1 n2 → e1 aeval⇓ n1 → e2 aeval⇓ n2 → BEq e1 e2 beval⇓ (beq-nat n1 n2)
+    E-BLe : ∀ e1 e2 n1 n2 → e1 aeval⇓ n1 → e2 aeval⇓ n2 → BLe e1 e2 beval⇓ (ble-nat n1 n2)
+    E-BNot : ∀ e b → e beval⇓ b → BNot e beval⇓ (not b)
+    E-BAnd : ∀ e1 e2 b1 b2 → e1 beval⇓ b1 → e2 beval⇓ b2 → BAnd e1 e2 beval⇓ (b1 ∧ b2)
+
+  open import Function.Equality
+
+  beval-iff-beval⇓ : ∀ e b → (e beval⇓ b) ⇔ beval e ≡ b
+  beval-iff-beval⇓ = λ e b → equivalence (left e b) (right e b)
+    where
+      left : ∀ e b → e beval⇓ b → beval e ≡ b
+      left .BTrue .true E-BTrue = refl
+      left .BFalse .false E-BFalse = refl
+      left .(BEq e1 e2) .(beq-nat n1 n2) (E-BEq e1 e2 n1 n2 x x₁)
+        rewrite Equivalence.to (aeval-iff-aeval⇓ e1 n1) Π.⟨$⟩ x
+              | Equivalence.to (aeval-iff-aeval⇓ e2 n2) Π.⟨$⟩ x₁
+              = refl
+      left .(BLe e1 e2) .(ble-nat n1 n2) (E-BLe e1 e2 n1 n2 x x₁)
+        rewrite Equivalence.to (aeval-iff-aeval⇓ e1 n1) Π.⟨$⟩ x
+              | Equivalence.to (aeval-iff-aeval⇓ e2 n2) Π.⟨$⟩ x₁
+              = refl
+      left .(BNot e) .(not b) (E-BNot e b e⇓b)
+        rewrite left e b e⇓b
+              = refl
+      left .(BAnd e1 e2) .(b1 ∧ b2) (E-BAnd e1 e2 b1 b2 e⇓b e⇓b₁)
+        rewrite left e1 b1 e⇓b
+              | left e2 b2 e⇓b₁
+              = refl
+      right : ∀ e b → beval e ≡ b → e beval⇓ b
+      right BTrue b eq rewrite sym eq = E-BTrue
+      right BFalse b eq rewrite sym eq = E-BFalse
+      right (BEq x x₁) b eq
+        rewrite sym eq
+              = E-BEq x x₁ (aeval x) (aeval x₁)
+                  (Equivalence.from (aeval-iff-aeval⇓ x (aeval x)) ⟨$⟩ refl)
+                  (Equivalence.from (aeval-iff-aeval⇓ x₁ (aeval x₁)) ⟨$⟩ refl)
+      right (BLe x x₁) b eq
+        rewrite sym eq
+              = E-BLe x x₁ (aeval x) (aeval x₁)
+                  (Equivalence.from (aeval-iff-aeval⇓ x (aeval x)) ⟨$⟩ refl)
+                  (Equivalence.from (aeval-iff-aeval⇓ x₁ (aeval x₁)) ⟨$⟩ refl)
+      right (BNot e) b eq
+        rewrite sym eq
+              = E-BNot e (beval e) (right e (beval e) refl)
+      right (BAnd e e₁) b eq
+        rewrite sym eq
+              = E-BAnd e e₁ (beval e) (beval e₁) (right e (beval e) refl)
+                  (right e₁ (beval e₁) refl)
+
+---- 推論規則記法 -------------------------------------------------------------
