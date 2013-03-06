@@ -281,3 +281,323 @@ optimize_0plusの変換がaexpの値を変えないことから、 bexpの値を
                   (right e₁ (beval e₁) refl)
 
 ---- 推論規則記法 -------------------------------------------------------------
+
+-- 変数を持つ式 ---------------------------------------------------------------
+
+---- 識別子 -------------------------------------------------------------------
+
+---- 状態 ---------------------------------------------------------------------
+state : Set
+state = ident → ℕ
+
+empty-state : state
+empty-state = const 0
+
+update : state → ident → ℕ → state
+update st x n x' = if beq-id x x' then n else st x'
+
+{-
+練習問題: ★★, optional (update_eq)
+-}
+update-eq : ∀ n X st → update st X n X ≡ n
+update-eq n X st
+  rewrite sym (beq-id-refl X)
+        = refl
+{-
+練習問題: ★★, optional (update_neq)
+-}
+update-neq : ∀ V2 V1 n st → beq-id V2 V1 ≡ false → update st V2 n V1 ≡ st V1
+update-neq V2 V1 n st x
+  rewrite x
+        = refl
+
+{-
+練習問題: ★★, optional (update_example)
+
+タクティックを使って遊び始める前に、 定理が言っていることを正確に理解していることを確認しなさい!
+-}
+update-example : ∀ n →  update empty-state (Ident 2) n (Ident 3) ≡ 0
+update-example = λ n → refl
+
+{-
+練習問題: ★★ (update_shadow)
+-}
+update-shadow : ∀ x1 x2 k1 k2 f → update (update f k2 x1) k2 x2 k1 ≡ update f k2 x2 k1
+update-shadow x1 x2 k1 k2 f with beq-id k2 k1
+update-shadow x1 x2 k1 k2 f | true = refl
+update-shadow x1 x2 k1 k2 f | false = refl
+
+{-
+練習問題: ★★, optional (update_same)
+-}
+-- これ f k1 = x1 ってあるけど f k2 = x1 だよね？
+update-same : ∀ x1 k1 k2 f → f k2 ≡ x1 → update f k1 x1 k2 ≡ f k2
+update-same x1 k1 k2 f eq rewrite eq with beq-id k1 k2
+update-same x1 k1 k2 f eq | true = refl
+update-same x1 k1 k2 f eq | false = refl
+
+{-
+練習問題: ★★, optional (update_permute)
+-}
+update-permute : ∀ x1 x2 k1 k2 k3 f → beq-id k2 k1 ≡ false →
+                 update (update f k2 x1) k1 x2 k3 ≡ update (update f k1 x2) k2 x1 k3
+update-permute x1 x2 k1 k2 k3 f x = update-permute' x1 x2 k1 k2 k3 f x (b≡t∨b≡f (beq-id k2 k3)) (b≡t∨b≡f (beq-id k1 k3))
+  where
+    b≡t∨b≡f : ∀ b → b ≡ true ⊎ b ≡ false
+    b≡t∨b≡f true = inj₁ refl
+    b≡t∨b≡f false = inj₂ refl
+    update-permute' : ∀ x1 x2 k1 k2 k3 f → beq-id k2 k1 ≡ false →
+                      beq-id k2 k3 ≡ true ⊎ beq-id k2 k3 ≡ false →
+                      beq-id k1 k3 ≡ true ⊎ beq-id k1 k3 ≡ false →
+                      update (update f k2 x1) k1 x2 k3 ≡ update (update f k1 x2) k2 x1 k3
+    update-permute' x1 x2 k1 k2 k3 f x (inj₁ x₂) (inj₁ x₃)
+      = ⊥-elim (beq-id-false-not-eq k2 k1 x (beq-id-eq k2 k3 (sym x₂) ⟨ trans ⟩ sym (beq-id-eq k1 k3 (sym x₃)) ))
+    update-permute' x1 x2 k1 k2 k3 f x (inj₁ x₂) (inj₂ y)
+      rewrite x₂
+            | y
+            | x
+            = refl
+    update-permute' x1 x2 k1 k2 k3 f x (inj₂ y) (inj₁ x₂)
+      rewrite x₂
+            | y
+            | x
+            = refl
+    update-permute' x1 x2 k1 k2 k3 f x (inj₂ y) (inj₂ y₁)
+      rewrite y
+            | y₁
+            | x
+            = refl
+
+---- 構文 ---------------------------------------------------------------------
+data aexp : Set where
+  ANum : ℕ → aexp
+  AId : ident → aexp
+  APlus : aexp → aexp → aexp
+  AMinus : aexp → aexp → aexp
+  AMult : aexp → aexp → aexp
+
+X : ident
+X = Ident 0
+Y : ident
+Y = Ident 1
+Z : ident
+Z = Ident 2
+
+data bexp : Set where
+  BTrue : bexp
+  BFalse : bexp
+  BEq : aexp → aexp → bexp
+  BLe : aexp → aexp → bexp
+  BNot : bexp → bexp
+  BAnd : bexp → bexp → bexp
+
+---- 評価 ---------------------------------------------------------------------
+aeval : state → aexp → ℕ
+aeval st (ANum n) = n
+aeval st (AId X) = st X
+aeval st (APlus exp₁ exp₂) = aeval st exp₁ + aeval st exp₂
+aeval st (AMinus exp₁ exp₂) = aeval st exp₁ ∸ aeval st exp₂
+aeval st (AMult exp₁ exp₂) = aeval st exp₁ * aeval st exp₂
+
+beval : state → bexp → Bool
+beval st BTrue = true
+beval st BFalse = false
+beval st (BEq exp₁ exp₂) = beq-nat (aeval st exp₁) (aeval st exp₂)
+beval st (BLe exp₁ exp₂) = ble-nat (aeval st exp₁) (aeval st exp₂)
+beval st (BNot exp) = not (beval st exp)
+beval st (BAnd exp₁ exp₂) = beval st exp₁ ∧ beval st exp₂
+
+aexp1 : aeval (update empty-state X 5) (APlus (ANum 3) (AMult (AId X) (ANum 2))) ≡ 13
+aexp1 = refl
+
+bexp1 : beval (update empty-state X 5) (BAnd BTrue (BNot (BLe (AId X) (ANum 4)))) ≡ true
+bexp1 = refl
+
+-- コマンド -------------------------------------------------------------------
+infixl 5 _∷=_
+infixr 4 _#_
+
+-- Agdaは;が演算子に使えない
+data com : Set where
+  SKIP : com
+  _∷=_ : ident → aexp → com
+  _#_ : com → com → com
+  IFB_THEN_ELSE_FI : bexp → com → com → com
+  WHILE_DO_END : bexp → com → com
+
+fact-in-coq : com
+fact-in-coq =
+  Z ∷= AId X #
+  Y ∷= ANum 1 #
+  WHILE BNot (BEq (AId Z) (ANum 0)) DO
+    Y ∷= AMult (AId Y) (AId Z) #
+    Z ∷= AMinus (AId Z) (ANum 1)
+  END
+
+---- 例 -----------------------------------------------------------------------
+plus2 : com
+plus2 =
+  X ∷= APlus (AId X) (ANum 2)
+
+XtimesYinZ : com
+XtimesYinZ =
+  Z ∷= AMult (AId X) (AId Y)
+
+subtract-slowly-body : com
+subtract-slowly-body =
+  Z ∷= AMinus (AId Z) (ANum 1) #
+  X ∷= AMinus (AId X) (ANum 1)
+
+subtract-slowly : com
+subtract-slowly =
+  WHILE BNot (BEq (AId X) (ANum 0)) DO
+    subtract-slowly-body
+  END
+
+subtract-3-from-5-slowly : com
+subtract-3-from-5-slowly =
+  X ∷= ANum 3 #
+  Z ∷= ANum 5 #
+  subtract-slowly
+
+loop : com
+loop =
+  WHILE BTrue DO
+    SKIP
+  END
+
+fact-body : com
+fact-body =
+  Y ∷= AMult (AId Y) (AId Z) #
+  Z ∷= AMinus (AId Z) (ANum 1)
+
+fact-loop : com
+fact-loop =
+  WHILE BNot (BEq (AId Z) (ANum 0)) DO
+    fact-body
+  END
+
+fact-com : com
+fact-com =
+  Z ∷= AId X #
+  Y ∷= ANum 1 #
+  fact-loop
+
+-- 評価 -----------------------------------------------------------------------
+
+---- 評価関数 -----------------------------------------------------------------
+
+ceval-step1 : state → com → state
+ceval-step1 st SKIP = st
+ceval-step1 st (x ∷= x₁) = update st x (aeval st x₁)
+ceval-step1 st (com # com₁) = ceval-step1 (ceval-step1 st com) com₁
+ceval-step1 st IFB x THEN com ELSE com₁ FI = if beval st x
+                                             then ceval-step1 st com
+                                             else ceval-step1 st com₁
+ceval-step1 st WHILE x DO com END = st -- まぁ止まらんかね．
+
+ceval-step2 : state → com → ℕ → state
+ceval-step2 st com zero = empty-state
+ceval-step2 st SKIP (suc i) = st
+ceval-step2 st (x ∷= x₁) (suc i) = update st x (aeval st x₁)
+ceval-step2 st (com # com₁) (suc i) = ceval-step2 (ceval-step2 st com i) com₁ i
+ceval-step2 st IFB x THEN com ELSE com₁ FI (suc i) =
+  if beval st x
+    then ceval-step2 st com i
+    else ceval-step2 st com₁ i
+ceval-step2 st WHILE x DO com END (suc i) =
+  if beval st x
+    then ceval-step2 (ceval-step2 st com i) (WHILE x DO com END) i
+    else st
+
+ceval-step3 : state → com → ℕ → Maybe state
+ceval-step3 st com zero = nothing
+ceval-step3 st SKIP (suc i) = just st
+ceval-step3 st (x ∷= x₁) (suc i) = just (update st x (aeval st x₁))
+ceval-step3 st (com # com₁) (suc i) =
+  case ceval-step3 st com i of λ
+  { (just st') → ceval-step3 st' com₁ i
+  ; nothing → nothing
+  }
+ceval-step3 st IFB x THEN com ELSE com₁ FI (suc i) =
+  if beval st x
+    then ceval-step3 st com i
+    else ceval-step3 st com₁ i
+ceval-step3 st WHILE x DO com END (suc i) =
+  if beval st x
+    then (case (ceval-step3 st com i) of λ
+          { (just st') → ceval-step3 st' (WHILE x DO com END) i
+          ; nothing → nothing
+          })
+    else just st
+
+-- LETOPT は どうみてもMonadのbindだし，みんなCategory.Monad使うよネー
+ceval-step : state → com → ℕ → Maybe state
+ceval-step st com zero = nothing
+ceval-step st SKIP (suc i) = just st
+ceval-step st (x ∷= x₁) (suc i) = just (update st x (aeval st x₁))
+ceval-step st (com # com₁) (suc i) =
+  ceval-step st com i >>= λ st' → ceval-step st' com₁ i
+  where
+    open import Category.Monad
+    open import Data.Maybe using (monad)
+    open RawMonad monad
+ceval-step st IFB x THEN com ELSE com₁ FI (suc i) =
+  if beval st x
+    then ceval-step st com i
+    else ceval-step st com₁ i
+ceval-step st WHILE x DO com END (suc i) =
+  if beval st x
+    then (ceval-step st com i >>= λ st' → ceval-step st' (WHILE x DO com END) i)
+    else just st
+  where
+    open import Category.Monad
+    open import Data.Maybe using (monad)
+    open RawMonad monad
+
+-- 何故直前でMonadのbind使っててこっちをFunctorにしないのか？
+test-ceval : state → com → Maybe (ℕ × ℕ × ℕ)
+test-ceval st c = f <$> ceval-step st c 500
+  where
+    f : state → ℕ × ℕ × ℕ
+    f st = st X , st Y , st Z
+    open import Category.Functor
+    open import Data.Maybe using (functor)
+    open RawFunctor functor
+
+{-
+練習問題: ★★, recommended (pup_to_n)
+
+1 から X までの整数を変数 Y に足す (つまり 1 + 2 + ... + X) Imp プログラムを書きなさい。下に示したテストを満たすことを確認しなさい。
+-}
+pup-to-n : com
+pup-to-n =
+  Y ∷= ANum 0 #
+  Z ∷= ANum 0 #
+  WHILE BLe (AId Z) (AId X) DO
+    Y ∷= APlus (AId Y) (AId Z) #
+    Z ∷= APlus (AId Z) (ANum 1)
+  END
+
+-- 下に示したテスト？
+test-pup-to-2 : test-ceval (update empty-state X 2) pup-to-n ≡ just (_ , 3 , _)
+test-pup-to-2 = refl
+
+{-
+練習問題: ★★, optional (peven)
+
+X が偶数だったら Z に 0 を、そうでなければ Z に 1 をセットする While プログラムを書きなさい。テストには ceval_test を使いなさい。
+-}
+peven : com
+peven =
+  Z ∷= AId X #
+  WHILE BLe (ANum 2) (AId Z) DO
+    Z ∷= AMinus (AId Z) (ANum 2)
+  END
+
+test-peven-3 : test-ceval (update empty-state X 3) peven ≡ just (_ , _ , 1)
+test-peven-3 = refl
+test-peven-4 : test-ceval (update empty-state X 4) peven ≡ just (_ , _ , 0)
+test-peven-4 = refl
+
+---- 関係としての評価 ---------------------------------------------------------

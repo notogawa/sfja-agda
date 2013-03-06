@@ -7,13 +7,14 @@ open import Function public
 open import Data.Nat public hiding (_≟_)
 open import Data.Bool public hiding (_≟_; decSetoid)
 open import Data.Product public hiding (map; zip)
+open import Data.Sum public hiding (map)
 open import Data.Empty public
 open import Data.List public hiding (monad; monadPlus; monadZero)
 open import Data.Maybe public hiding (decSetoid; monad; monadPlus; monadZero)
 open import Relation.Nullary public
 open import Relation.Binary public
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq public using (_≡_; _≢_; refl; cong; sym)
+open PropEq public using (_≡_; _≢_; refl; cong; sym; trans)
 
 -- Require Export相当とはいえこのpublicの山は嫌過ぎる
 
@@ -111,14 +112,14 @@ rsc-trans R x y z (rsc-step .x y₁ .y x₁ rsc₁) rsc₂ = rsc-step x y₁ z x
 suc-inversion : ∀ n m → suc n ≡ suc m → n ≡ m
 suc-inversion .m m refl = refl
 
-data idℕ : Set where
-  Idℕ : ℕ → idℕ
+data ident : Set where
+  Ident : ℕ → ident
 
-Idℕ-inversion : ∀ n m → Idℕ n ≡ Idℕ m → n ≡ m
-Idℕ-inversion .m m refl = refl
+Ident-inversion : ∀ n m → Ident n ≡ Ident m → n ≡ m
+Ident-inversion .m m refl = refl
 
-beq-id : idℕ → idℕ → Bool
-beq-id (Idℕ n) (Idℕ m) = beq-nat n m
+beq-id : ident → ident → Bool
+beq-id (Ident n) (Ident m) = beq-nat n m
 
 beq-nat-refl : ∀ n → true ≡ beq-nat n n
 beq-nat-refl zero = refl
@@ -137,27 +138,27 @@ beq-nat-false (suc n) zero f₁ = λ ()
 beq-nat-false (suc n) (suc m) f₁ = beq-nat-false n m f₁ ∘ suc-inversion n m
 
 beq-id-refl : ∀ i → true ≡ beq-id i i
-beq-id-refl (Idℕ n) = beq-nat-refl n
+beq-id-refl (Ident n) = beq-nat-refl n
 
 beq-id-eq : ∀ i₁ i₂ → true ≡ beq-id i₁ i₂ → i₁ ≡ i₂
-beq-id-eq (Idℕ n) (Idℕ m) t = cong Idℕ (beq-nat-eq n m t)
+beq-id-eq (Ident n) (Ident m) t = cong Ident (beq-nat-eq n m t)
 
 beq-id-false-not-eq : ∀ i₁ i₂ → beq-id i₁ i₂ ≡ false → i₁ ≢ i₂
-beq-id-false-not-eq (Idℕ n) (Idℕ m) f = beq-nat-false n m f ∘ Idℕ-inversion n m
+beq-id-false-not-eq (Ident n) (Ident m) f = beq-nat-false n m f ∘ Ident-inversion n m
 
 not-eq-beq-id-false : ∀ i₁ i₂ → i₁ ≢ i₂ → beq-id i₁ i₂ ≡ false
-not-eq-beq-id-false (Idℕ n) (Idℕ m) i₁≢i₂ = not-eq-beq-false n m (i₁≢i₂ ∘ cong Idℕ)
+not-eq-beq-id-false (Ident n) (Ident m) i₁≢i₂ = not-eq-beq-false n m (i₁≢i₂ ∘ cong Ident)
 
 beq-id-sym : ∀ i₁ i₂ → beq-id i₁ i₂ ≡ beq-id i₂ i₁
-beq-id-sym (Idℕ n) (Idℕ m) = beq-nat-sym n m
+beq-id-sym (Ident n) (Ident m) = beq-nat-sym n m
 
 partial-map : ∀ {a} (X : Set a) → Set a
-partial-map X = idℕ → Maybe X
+partial-map X = ident → Maybe X
 
 empty : ∀ {a} {X : Set a} → partial-map X
 empty = const nothing
 
-extend : ∀ {a} {X : Set a} (Γ : partial-map X) (x : idℕ) (T : X) → idℕ → Maybe X
+extend : ∀ {a} {X : Set a} (Γ : partial-map X) (x : ident) (T : X) → ident → Maybe X
 extend Γ x T = λ x' → if beq-id x x' then just T else Γ x'
 
 extend-eq : ∀ {a} {X : Set a} (ctxt : partial-map X) x T → extend ctxt x T x ≡ just T
