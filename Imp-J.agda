@@ -683,3 +683,64 @@ ceval-example2 = E-Seq (Ident zero ∷= ANum zero)
                      refl))
 
 ---- 関係による評価とステップ指数を利用した評価の等価性 -----------------------
+ceval-step→ceval : ∀ c st st' →
+                   (∃ λ i → ceval-step st c i ≡ just st') →
+                   c / st ⇓ st'
+ceval-step→ceval c st st' (i , jst≡jst') = ceval-step→ceval' c st st' i jst≡jst'
+  where
+    just-inversion : ∀ {a} {X : Set a} {x y : X} → Maybe.just x ≡ just y → x ≡ y
+    just-inversion refl = refl
+
+    just-inversion' : ∀ {a} {X : Set a} {y : X} → Maybe.nothing ≡ just y → ⊥
+    just-inversion' = λ ()
+
+    maybe-remember : ∀ {a} {X : Set a} (x : Maybe X) → (∃ λ a → x ≡ just a) ⊎ x ≡ nothing
+    maybe-remember (just x) = inj₁ (x , refl)
+    maybe-remember nothing = inj₂ refl
+
+    bool-remember : ∀ b → b ≡ true ⊎ b ≡ false
+    bool-remember true = inj₁ refl
+    bool-remember false = inj₂ refl
+
+    ceval-step→ceval' : ∀ c st st' i →
+                       ceval-step st c i ≡ just st' →
+                       c / st ⇓ st'
+    ceval-step→ceval' c st st' zero ()
+    ceval-step→ceval' SKIP st st' (suc i) jst≡jst'
+      rewrite just-inversion jst≡jst'
+            = E-Skip st'
+    ceval-step→ceval' (x ∷= x₁) st st' (suc i) jst≡jst'
+      rewrite sym (just-inversion jst≡jst')
+            = E-Ass st x₁ (aeval st x₁) x refl
+    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' with maybe-remember (ceval-step st c i)
+    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' | inj₁ (st'' , x)
+      rewrite x
+            = E-Seq c c₁ st st'' st'
+                (ceval-step→ceval' c st st'' i x)
+                (ceval-step→ceval' c₁ st'' st' i jst≡jst')
+    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' | inj₂ y
+      rewrite y
+            = ⊥-elim (just-inversion' jst≡jst')
+    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' with bool-remember (beval st x)
+    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' | inj₁ x₁
+      rewrite x₁
+            = E-IfTrue st st' x c c₁ x₁ (ceval-step→ceval' c st st' i jst≡jst')
+    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' | inj₂ y
+      rewrite y
+            = E-IfFalse st st' x c c₁ y (ceval-step→ceval' c₁ st st' i jst≡jst')
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' with bool-remember (beval st x)
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ with maybe-remember (ceval-step st c i)
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ | inj₁ (st'' , proj₂)
+      rewrite x₁
+            | proj₂
+            = E-WhileLoop st st'' st' x c x₁
+                (ceval-step→ceval' c st st'' i proj₂)
+                (ceval-step→ceval' WHILE x DO c END st'' st' i jst≡jst')
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ | inj₂ y
+      rewrite x₁
+            | y
+            = ⊥-elim (just-inversion' jst≡jst')
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₂ y
+      rewrite y
+            | sym (just-inversion jst≡jst')
+            = E-WhileEnd x st c y
