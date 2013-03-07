@@ -601,3 +601,85 @@ test-peven-4 : test-ceval (update empty-state X 4) peven ≡ just (_ , _ , 0)
 test-peven-4 = refl
 
 ---- 関係としての評価 ---------------------------------------------------------
+data _/_⇓_ : com → state → state → Set where
+  E-Skip : ∀ st →
+           SKIP / st ⇓ st
+  E-Ass : ∀ st a1 n l → aeval st a1 ≡ n →
+          (l ∷= a1) / st ⇓ update st l n
+  E-Seq : ∀ c1 c2 st st' st'' → c1 / st ⇓ st' → c2 / st' ⇓ st'' →
+          (c1 # c2) / st ⇓ st''
+  E-IfTrue : ∀ st st' b1 c1 c2 → beval st b1 ≡ true → c1 / st ⇓ st' →
+             IFB b1 THEN c1 ELSE c2 FI / st ⇓ st'
+  E-IfFalse : ∀ st st' b1 c1 c2 → beval st b1 ≡ false → c2 / st ⇓ st' →
+              IFB b1 THEN c1 ELSE c2 FI / st ⇓ st'
+  E-WhileEnd : ∀ b1 st c1 → beval st b1 ≡ false →
+               WHILE b1 DO c1 END / st ⇓ st
+  E-WhileLoop : ∀ st st' st'' b1 c1 → beval st b1 ≡ true → c1 / st ⇓ st' →
+                WHILE b1 DO c1 END / st' ⇓ st'' →
+                WHILE b1 DO c1 END / st ⇓ st''
+
+ceval-example1 : (X ∷= ANum 2 #
+                  IFB BLe (AId X) (ANum 1)
+                    THEN Y ∷= ANum 3
+                    ELSE Z ∷= ANum 4
+                  FI) / empty-state ⇓ update (update empty-state X 2) Z 4
+-- ceval-example1 = ? から c-c c-a でウワァァァ
+ceval-example1 = E-Seq (Ident zero ∷= ANum (suc (suc zero)))
+                   IFB BLe (AId (Ident zero)) (ANum (suc zero)) THEN
+                   Ident (suc zero) ∷= ANum (suc (suc (suc zero))) ELSE
+                   Ident (suc (suc zero)) ∷= ANum (suc (suc (suc (suc zero)))) FI
+                   (λ _ → zero)
+                   (λ z → if beq-id (Ident zero) z then suc (suc zero) else zero)
+                   (λ z →
+                      if beq-id (Ident (suc (suc zero))) z then
+                      suc (suc (suc (suc zero))) else
+                      (if beq-id (Ident zero) z then suc (suc zero) else zero))
+                   (E-Ass (λ _ → zero) (ANum (suc (suc zero))) (suc (suc zero))
+                    (Ident zero) refl)
+                   (E-IfFalse
+                    (λ z → if beq-id (Ident zero) z then suc (suc zero) else zero)
+                    (λ z →
+                       if beq-id (Ident (suc (suc zero))) z then
+                       suc (suc (suc (suc zero))) else
+                       (if beq-id (Ident zero) z then suc (suc zero) else zero))
+                    (BLe (AId (Ident zero)) (ANum (suc zero)))
+                    (Ident (suc zero) ∷= ANum (suc (suc (suc zero))))
+                    (Ident (suc (suc zero)) ∷= ANum (suc (suc (suc (suc zero))))) refl
+                    (E-Ass
+                     (λ z → if beq-id (Ident zero) z then suc (suc zero) else zero)
+                     (ANum (suc (suc (suc (suc zero))))) (suc (suc (suc (suc zero))))
+                     (Ident (suc (suc zero))) refl))
+{-
+練習問題: ★★ (ceval_example2)
+-}
+ceval-example2 : (X ∷= ANum 0 # Y ∷= ANum 1 # Z ∷= ANum 2) / empty-state ⇓
+                 update (update (update empty-state X 0) Y 1) Z 2
+ceval-example2 = E-Seq (Ident zero ∷= ANum zero)
+                   (Ident (suc zero) ∷= ANum (suc zero) #
+                    Ident (suc (suc zero)) ∷= ANum (suc (suc zero)))
+                   (λ _ → zero) (λ z → if beq-id (Ident zero) z then zero else zero)
+                   (λ z →
+                      if beq-id (Ident (suc (suc zero))) z then suc (suc zero) else
+                      (if beq-id (Ident (suc zero)) z then suc zero else
+                       (if beq-id (Ident zero) z then zero else zero)))
+                   (E-Ass (λ _ → zero) (ANum zero) zero (Ident zero) refl)
+                   (E-Seq (Ident (suc zero) ∷= ANum (suc zero))
+                    (Ident (suc (suc zero)) ∷= ANum (suc (suc zero)))
+                    (λ z → if beq-id (Ident zero) z then zero else zero)
+                    (λ z →
+                       if beq-id (Ident (suc zero)) z then suc zero else
+                       (if beq-id (Ident zero) z then zero else zero))
+                    (λ z →
+                       if beq-id (Ident (suc (suc zero))) z then suc (suc zero) else
+                       (if beq-id (Ident (suc zero)) z then suc zero else
+                        (if beq-id (Ident zero) z then zero else zero)))
+                    (E-Ass (λ z → if beq-id (Ident zero) z then zero else zero)
+                     (ANum (suc zero)) (suc zero) (Ident (suc zero)) refl)
+                    (E-Ass
+                     (λ z →
+                        if beq-id (Ident (suc zero)) z then suc zero else
+                        (if beq-id (Ident zero) z then zero else zero))
+                     (ANum (suc (suc zero))) (suc (suc zero)) (Ident (suc (suc zero)))
+                     refl))
+
+---- 関係による評価とステップ指数を利用した評価の等価性 -----------------------
