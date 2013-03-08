@@ -834,3 +834,50 @@ ceval-step-more (suc i1) (suc i2) st st' WHILE x DO c END (s≤s i1≤i2) x₁
 
 以下の証明を完成させなさい。何度か ceval_step_more が必要となり、 さらに <= と plus に関するいくつかの基本的な事実が必要となるでしょう。
 -}
+
+open import Data.Nat.Properties -- <= と plus に関するいくつかの基本的な事実
+
+ceval→ceval-step : ∀ c st st' →
+                   c / st ⇓ st' →
+                   ∃ (λ i → ceval-step st c i ≡ just st')
+ceval→ceval-step .SKIP .st' st' (E-Skip .st') = 1 , refl
+ceval→ceval-step .(l ∷= a1) st .(λ x' → if beq-id l x' then n else st x') (E-Ass .st a1 n l x)
+  rewrite sym x
+        = 1 , refl
+ceval→ceval-step .(c1 # c2) st st' (E-Seq c1 c2 .st st'' .st' c/st⇓st' c/st⇓st'') with ceval→ceval-step c1 st st'' c/st⇓st' | ceval→ceval-step c2 st'' st' c/st⇓st''
+ceval→ceval-step .(c1 # c2) st st' (E-Seq c1 c2 .st st'' .st' c/st⇓st' c/st⇓st'') | proj₁ , proj₂ | proj₃ , proj₄ = suc (proj₁ + proj₃) , assert
+  where
+    assert : ceval-step st (c1 # c2) (suc (proj₁ + proj₃)) ≡ just st'
+    assert
+      rewrite ceval-step-more proj₁ (proj₁ + proj₃) st st'' c1 (m≤m+n proj₁ proj₃) proj₂
+            | ceval-step-more proj₃ (proj₁ + proj₃) st'' st' c2 (n≤m+n proj₁ proj₃) proj₄
+            = refl
+ceval→ceval-step .(IFB b1 THEN c1 ELSE c2 FI) st st' (E-IfTrue .st .st' b1 c1 c2 x c/st⇓st') with ceval→ceval-step c1 st st' c/st⇓st'
+ceval→ceval-step .(IFB b1 THEN c1 ELSE c2 FI) st st' (E-IfTrue .st .st' b1 c1 c2 x c/st⇓st') | proj₁ , proj₂ = suc proj₁ , assert
+  where
+    assert : ceval-step st IFB b1 THEN c1 ELSE c2 FI (suc proj₁) ≡ just st'
+    assert
+      rewrite x
+            = proj₂
+ceval→ceval-step .(IFB b1 THEN c1 ELSE c2 FI) st st' (E-IfFalse .st .st' b1 c1 c2 x c/st⇓st') with ceval→ceval-step c2 st st' c/st⇓st'
+ceval→ceval-step .(IFB b1 THEN c1 ELSE c2 FI) st st' (E-IfFalse .st .st' b1 c1 c2 x c/st⇓st') | proj₁ , proj₂ = suc proj₁ , assert
+  where
+    assert : ceval-step st IFB b1 THEN c1 ELSE c2 FI (suc proj₁) ≡ just st'
+    assert
+      rewrite x
+            = proj₂
+ceval→ceval-step .(WHILE b1 DO c1 END) .st' st' (E-WhileEnd b1 .st' c1 x) = 1 , assert
+  where
+    assert : ceval-step st' WHILE b1 DO c1 END 1 ≡ just st'
+    assert
+      rewrite x
+            = refl
+ceval→ceval-step .(WHILE b1 DO c1 END) st st' (E-WhileLoop .st st'' .st' b1 c1 x c/st⇓st' c/st⇓st'') with ceval→ceval-step c1 st st'' c/st⇓st' | ceval→ceval-step WHILE b1 DO c1 END st'' st' c/st⇓st''
+ceval→ceval-step .(WHILE b1 DO c1 END) st st' (E-WhileLoop .st st'' .st' b1 c1 x c/st⇓st' c/st⇓st'') | proj₁ , proj₂ | proj₃ , proj₄ = (suc (proj₁ + proj₃)) , assert
+  where
+    assert : ceval-step st WHILE b1 DO c1 END (suc (proj₁ + proj₃)) ≡ just st'
+    assert
+      rewrite x
+            | ceval-step-more proj₁ (proj₁ + proj₃) st st'' c1 (m≤m+n proj₁ proj₃) proj₂
+            | ceval-step-more proj₃ (proj₁ + proj₃) st'' st' WHILE b1 DO c1 END (n≤m+n proj₁ proj₃) proj₄
+            = refl
