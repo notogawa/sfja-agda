@@ -744,3 +744,93 @@ ceval-step→ceval c st st' (i , jst≡jst') = ceval-step→ceval' c st st' i js
       rewrite y
             | sym (just-inversion jst≡jst')
             = E-WhileEnd x st c y
+
+{-
+練習問題: ★★★★ (ceval_step__ceval_inf)
+
+いつものテンプレートにのっとって、 ceval_step__ceval の形式的でない証明を書きましょう。 (帰納的に定義された値の場合分けに対するテンプレートは、 帰納法の仮定がないこと以外は帰納法と同じ見た目になるはずです。) 単に形式的な証明のステップを書き写すだけでなく、 人間の読者に主要な考えが伝わるようにしなさい。
+-}
+-- 略
+
+
+
+-- remember tactic ってきっとこういうのなんだろうかね．
+maybe-remember : ∀ {a b} {X : Set a} {P : Set b} (Mx : Maybe X)
+                 (Proof-just : ∃ (λ x → Mx ≡ just x) → P) →
+                 (Proof-nothing : Mx ≡ nothing → P) →
+                 P
+maybe-remember (just x) Proof-just Proof-nothing = Proof-just (x , refl)
+maybe-remember nothing Proof-just Proof-nothing = Proof-nothing refl
+
+bool-remember : ∀ {a} {P : Set a} (b : Bool)
+                (Proof-true : b ≡ true → P) →
+                (Proof-false : b ≡ false → P) →
+                P
+bool-remember true Proof-true Proof-false = Proof-true refl
+bool-remember false Proof-true Proof-false = Proof-false refl
+
+ceval-step-more : ∀ i1 i2 st st' c →
+                  i1 ≤ i2 →
+                  ceval-step st c i1 ≡ just st' →
+                  ceval-step st c i2 ≡ just st'
+ceval-step-more zero i2 st st' c i1≤i2 ()
+ceval-step-more (suc i1) zero st st' c () x
+ceval-step-more (suc i1) (suc i2) st st' SKIP i1≤i2 x = x
+ceval-step-more (suc i1) (suc i2) st st' (x ∷= x₁) i1≤i2 x₂ = x₂
+ceval-step-more (suc i1) (suc i2) st st' (c # c₁) (s≤s i1≤i2) x
+  = maybe-remember (ceval-step st c i1) (ceval-step-more-just x) (ceval-step-more-nothing x)
+  where
+    ceval-step-more-just : ceval-step st (c # c₁) (suc i1) ≡ just st' →
+                           ∃ (λ x₁ → ceval-step st c i1 ≡ just x₁) →
+                           ceval-step st (c # c₁) (suc i2) ≡ just st'
+    ceval-step-more-just x (proj₁ , proj₂)
+      rewrite proj₂
+            | ceval-step-more i1 i2 st proj₁ c i1≤i2 proj₂
+            | ceval-step-more i1 i2 proj₁ st' c₁ i1≤i2 x
+            = refl
+    ceval-step-more-nothing : ceval-step st (c # c₁) (suc i1) ≡ just st' →
+                              ceval-step st c i1 ≡ nothing →
+                              ceval-step st (c # c₁) (suc i2) ≡ just st'
+    ceval-step-more-nothing x y rewrite y = inversion x
+      where
+        inversion : nothing ≡ just st' → _
+        inversion ()
+ceval-step-more (suc i1) (suc i2) st st' IFB x THEN c ELSE c₁ FI (s≤s i1≤i2) x₁
+  = bool-remember (beval st x) (ceval-step-more-true x₁) (ceval-step-more-false x₁)
+  where
+    ceval-step-more-true : ceval-step st IFB x THEN c ELSE c₁ FI (suc i1) ≡ just st' →
+                           beval st x ≡ true →
+                           ceval-step st IFB x THEN c ELSE c₁ FI (suc i2) ≡ just st'
+    ceval-step-more-true x₁ x⇓t rewrite x⇓t = ceval-step-more i1 i2 st st' c i1≤i2 x₁
+    ceval-step-more-false : ceval-step st IFB x THEN c ELSE c₁ FI (suc i1) ≡ just st' →
+                            beval st x ≡ false →
+                            ceval-step st IFB x THEN c ELSE c₁ FI (suc i2) ≡ just st'
+    ceval-step-more-false x₁ x⇓f rewrite x⇓f = ceval-step-more i1 i2 st st' c₁ i1≤i2 x₁
+ceval-step-more (suc i1) (suc i2) st st' WHILE x DO c END (s≤s i1≤i2) x₁
+  = maybe-remember (ceval-step st c i1) (ceval-step-more-just x₁) (ceval-step-more-nothing x₁)
+  where
+    ceval-step-more-just : ceval-step st WHILE x DO c END (suc i1) ≡ just st' →
+                           ∃ (λ st'' → ceval-step st c i1 ≡ just st'') →
+                           ceval-step st WHILE x DO c END (suc i2) ≡ just st'
+    ceval-step-more-just x' (st'' , proj₂) with beval st x
+    ceval-step-more-just x' (st'' , proj₂) | true
+      rewrite proj₂
+            | ceval-step-more i1 i2 st st'' c i1≤i2 proj₂
+            | ceval-step-more i1 i2 st'' st' WHILE x DO c END i1≤i2 x'
+            = refl
+    ceval-step-more-just x' (st'' , proj₂) | false = x'
+    ceval-step-more-nothing : ceval-step st WHILE x DO c END (suc i1) ≡ just st' →
+                              ceval-step st c i1 ≡ nothing →
+                              ceval-step st WHILE x DO c END (suc i2) ≡ just st'
+    ceval-step-more-nothing x' y with beval st x
+    ceval-step-more-nothing x' y | true rewrite y = inversion x'
+      where
+        inversion : nothing ≡ just st' → _
+        inversion ()
+    ceval-step-more-nothing x' y | false = x'
+
+{-
+練習問題: ★★★, recommended (ceval__ceval_step)
+
+以下の証明を完成させなさい。何度か ceval_step_more が必要となり、 さらに <= と plus に関するいくつかの基本的な事実が必要となるでしょう。
+-}
