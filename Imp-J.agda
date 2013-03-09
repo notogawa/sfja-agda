@@ -1077,3 +1077,29 @@ no-whiles-terminating st .(IFB b THEN com₁ ELSE com₂ FI) (IFB_THEN_ELSE_FI b
     assert-false | proj₁ , proj₂ = λ z → proj₁ , E-IfFalse st proj₁ b com₁ com₂ z proj₂
 
 ---- プログラム正当性 (Optional) ----------------------------------------------
+real-fact : ℕ → ℕ
+real-fact zero = 1
+real-fact (suc n) = suc n * real-fact n
+
+fact-invariant : ℕ → state → Set
+fact-invariant x st = st Y * real-fact (st Z) ≡ real-fact x
+
+private
+  *-assoc' = *-assoc
+    where
+      open import Algebra
+      open Algebra.CommutativeSemiring commutativeSemiring
+
+fact-body-preserves-invariant : ∀ st st' x →
+                                fact-invariant x st →
+                                st Z ≢ 0 →
+                                fact-body / st ⇓ st' →
+                                fact-invariant x st'
+fact-body-preserves-invariant st .(λ x' → if beq-id (Z) x' then n₁ else (if beq-id (Y) x' then n else st x')) x Hinv Z≢0 (E-Seq .(Y ∷= AMult (AId (Y)) (AId (Z))) .(Z ∷= AMinus (AId (Z)) (ANum 1)) .st .(λ x' → if beq-id (Y) x' then n else st x') .(λ x' → if beq-id (Z) x' then n₁ else (if beq-id (Y) x' then n else st x')) (E-Ass .st .(AMult (AId (Y)) (AId (Z))) n .(Y) x₁) (E-Ass .(λ x' → if beq-id (Y) x' then n else st x') .(AMinus (AId (Z)) (ANum 1)) n₁ .(Z) x₂)) with st Z
+fact-body-preserves-invariant st ._ x Hinv Z≢0 (E-Seq .(Ident _ ∷= AMult (AId (Ident _)) (AId (Ident _))) .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .st ._ ._ (E-Ass .st .(AMult (AId (Ident _)) (AId (Ident _))) n .(Ident _) x₁) (E-Ass ._ .(AMinus (AId (Ident _)) (ANum _)) n₁ .(Ident _) x₂)) | zero = ⊥-elim (Z≢0 refl)
+fact-body-preserves-invariant st ._ x Hinv Z≢0 (E-Seq .(Ident _ ∷= AMult (AId (Ident _)) (AId (Ident _))) .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .st ._ ._ (E-Ass .st .(AMult (AId (Ident _)) (AId (Ident _))) n .(Ident _) x₁) (E-Ass ._ .(AMinus (AId (Ident _)) (ANum _)) n₁ .(Ident _) x₂)) | suc m
+  rewrite sym Hinv
+        | sym x₁
+        | sym x₂
+        | *-assoc' (st Y) (suc m) (real-fact m)
+        = refl
