@@ -965,3 +965,115 @@ ceval-deterministic' c st st1 st2 He1 He2 | i1 , E1 | i2 , E2
   where
     just-inversion : ∀ {a} {X : Set a} {x y : X} → Maybe.just x ≡ just y → x ≡ y
     just-inversion refl = refl
+
+-- プログラムの検証 -----------------------------------------------------------
+
+---- 基本的な例 ---------------------------------------------------------------
+plus2-spec : ∀ st n st' →
+             st X ≡ n →
+             plus2 / st ⇓ st' →
+             st' X ≡ n + 2
+plus2-spec st n .(λ x' → if beq-id X x' then n₁ else st x') HX (E-Ass .st .(APlus (AId X) (ANum 2)) n₁ .X x)
+  rewrite HX
+        | x
+        = refl
+
+{-
+練習問題: ★★★, recommended (XtimesYinZ_spec)
+
+XtimesYinZ の Imp プログラムの仕様を書いて証明しなさい。
+-}
+XtimesYinZ-spec : ∀ st st' x y →
+                  st X ≡ x →
+                  st Y ≡ y →
+                  XtimesYinZ / st ⇓ st' →
+                  st' Z ≡ x * y
+XtimesYinZ-spec st .(λ x' → if beq-id Z x' then n else st x') x y HX HY (E-Ass .st .(AMult (AId X) (AId Y)) n .Z x₁)
+  rewrite HX
+        | HY
+        | x₁
+        = refl
+
+{-
+練習問題: ★★★, recommended (loop_never_stops)
+-}
+loop-never-stops : ∀ st st' →
+                   ¬ (loop / st ⇓ st')
+loop-never-stops .st' st' (E-WhileEnd .BTrue .st' .SKIP x) = inversion x
+  where
+    inversion : true ≡ false → _
+    inversion ()
+loop-never-stops st st' (E-WhileLoop .st st'' .st' .BTrue .SKIP x Heval Heval₁) = loop-never-stops st'' st' Heval₁
+
+
+no-whiles : com → Bool
+no-whiles SKIP = true
+no-whiles (x ∷= x₁) = true
+no-whiles (c # c₁) = no-whiles c ∧ no-whiles c₁
+no-whiles IFB x THEN c ELSE c₁ FI = no-whiles c ∧ no-whiles c₁
+no-whiles WHILE x DO c END = false
+
+{-
+練習問題: ★★, optional (no_whilesR)
+
+性質 no_whiles はプログラムが while ループを含まない場合 true を返します。 Inductive を使って c が while ループのないプログラムのとき証明可能な性質 no_whilesR を書きなさい。 さらに、それが no_whiles と等価であることを示しなさい。
+-}
+data no-whilesR : com → Set where
+  SKIP : no-whilesR SKIP
+  _∷=_ : ∀ {i a} → no-whilesR (i ∷= a)
+  _#_ : ∀ {com₁ com₂} → no-whilesR com₁ → no-whilesR com₂ → no-whilesR (com₁ # com₂)
+  IFB_THEN_ELSE_FI : ∀ b {com₁ com₂}→ no-whilesR com₁ → no-whilesR com₂ → no-whilesR (IFB b THEN com₁ ELSE com₂ FI)
+
+no-whiles-eqv : ∀ c → no-whiles c ≡ true ⇔ no-whilesR c
+no-whiles-eqv = λ c → equivalence (assert→ c) (assert← c)
+  where
+    assert→ : ∀ c → no-whiles c ≡ true → no-whilesR c
+    assert→ SKIP eq = SKIP
+    assert→ (x ∷= x₁) eq = _∷=_
+    assert→ (c # c₁) eq
+      = assert→ c (andb-true-elim1 (no-whiles c) (no-whiles c₁) eq) #
+        assert→ c₁ (andb-true-elim2 (no-whiles c) (no-whiles c₁) eq)
+    assert→ IFB x THEN c ELSE c₁ FI eq
+      = IFB x
+          THEN assert→ c (andb-true-elim1 (no-whiles c) (no-whiles c₁) eq)
+          ELSE assert→ c₁ (andb-true-elim2 (no-whiles c) (no-whiles c₁) eq)
+        FI
+    assert→ WHILE x DO c END ()
+    assert← : ∀ c → no-whilesR c → no-whiles c ≡ true
+    assert← .SKIP SKIP = refl
+    assert← .(i ∷= a) (_∷=_ {i} {a}) = refl
+    assert← .(com₁ # com₂) (_#_ {com₁} {com₂} HR₁ HR₂)
+      rewrite assert← com₁ HR₁
+            | assert← com₂ HR₂
+            = refl
+    assert← .(IFB b THEN com₁ ELSE com₂ FI) (IFB_THEN_ELSE_FI b {com₁} {com₂} HR₁ HR₂)
+      rewrite assert← com₁ HR₁
+            | assert← com₂ HR₂
+            = refl
+
+{-
+練習問題: ★★★★, optional (no_whiles_terminating)
+
+while ループを含まない Imp プログラムは必ず停止します。 これを定理として記述し、証明しなさい。
+(no_whiles と no_whilesR のどちらでも好きなほうを使いなさい。)
+-}
+no-whiles-terminating : ∀ st com → no-whilesR com → ∃ (λ st' → com / st ⇓ st')
+no-whiles-terminating st .SKIP SKIP = st , E-Skip st
+no-whiles-terminating st .(i ∷= a) (_∷=_ {i} {a}) = (λ x → if beq-id i x then aeval st a else st x) ,
+                                                      E-Ass st a (aeval st a) i refl
+no-whiles-terminating st .(com₁ # com₂) (_#_ {com₁} {com₂} Hcom₁ Hcom₂) with no-whiles-terminating st com₁ Hcom₁
+no-whiles-terminating st .(com₁ # com₂) (_#_ {com₁} {com₂} Hcom₁ Hcom₂) | (st' , H₁) with no-whiles-terminating st' com₂ Hcom₂
+no-whiles-terminating st .(com₁ # com₂) (_#_ {com₁} {com₂} Hcom₁ Hcom₂) | st' , H₁ | st'' , H₂ = st'' , E-Seq com₁ com₂ st st' st'' H₁ H₂
+no-whiles-terminating st .(IFB b THEN com₁ ELSE com₂ FI) (IFB_THEN_ELSE_FI b {com₁} {com₂} Hcom₁ Hcom₂)
+  = Bool-remember (beval st b) assert-true assert-false
+  where
+    assert-true : beval st b ≡ true →
+                  ∃ (λ st' → IFB b THEN com₁ ELSE com₂ FI / st ⇓ st')
+    assert-true with no-whiles-terminating st com₁ Hcom₁
+    assert-true | proj₁ , proj₂ = λ z → proj₁ , E-IfTrue st proj₁ b com₁ com₂ z proj₂
+    assert-false : beval st b ≡ false →
+                   ∃ (λ st' → IFB b THEN com₁ ELSE com₂ FI / st ⇓ st')
+    assert-false with no-whiles-terminating st com₂ Hcom₂
+    assert-false | proj₁ , proj₂ = λ z → proj₁ , E-IfFalse st proj₁ b com₁ com₂ z proj₂
+
+---- プログラム正当性 (Optional) ----------------------------------------------
