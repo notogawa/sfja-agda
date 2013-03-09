@@ -902,10 +902,66 @@ ceval→ceval-step .(WHILE b1 DO c1 END) st st' (E-WhileLoop .st st'' .st' b1 c1
             | ceval-step-more proj₃ (proj₁ + proj₃) st'' st' WHILE b1 DO c1 END (n≤m+n proj₁ proj₃) proj₄
             = refl
 
-open import Function.Equivalence
+open import Function.Equivalence hiding (sym)
 
 ceval-and-ceval-step-coincide : ∀ c st st' →
                                 c / st ⇓ st' ⇔ ∃ (λ i → ceval-step st c i ≡ just st')
 ceval-and-ceval-step-coincide = λ c st st' → equivalence (ceval→ceval-step c st st') (ceval-step→ceval c st st')
 
 ---- 実行の決定性 -------------------------------------------------------------
+ceval-deterministic : ∀ c st st1 st2 →
+                      c / st ⇓ st1 →
+                      c / st ⇓ st2 →
+                      st1 ≡ st2
+ceval-deterministic .SKIP .st2 .st2 st2 (E-Skip .st2) (E-Skip .st2) = refl
+ceval-deterministic .(l ∷= a1) st .(λ x' → if beq-id l x' then n else st x') .(λ x' → if beq-id l x' then n₁ else st x') (E-Ass .st a1 n l x) (E-Ass .st .a1 n₁ .l x₁)
+  rewrite sym x
+        | sym x₁
+        = refl
+ceval-deterministic .(c1 # c2) st st1 st2 (E-Seq c1 c2 .st st' .st1 x₁ x₂) (E-Seq .c1 .c2 .st st'' .st2 x₃ x₄)
+  rewrite ceval-deterministic c1 st st' st'' x₁ x₃
+        | ceval-deterministic c2 st'' st1 st2 x₂ x₄
+        = refl
+ceval-deterministic .(IFB b1 THEN c1 ELSE c2 FI) st st1 st2 (E-IfTrue .st .st1 b1 c1 c2 x x₁) (E-IfTrue .st .st2 .b1 .c1 .c2 x₂ x₃) = ceval-deterministic c1 st st1 st2 x₁ x₃
+ceval-deterministic .(IFB b1 THEN c1 ELSE c2 FI) st st1 st2 (E-IfTrue .st .st1 b1 c1 c2 x x₁) (E-IfFalse .st .st2 .b1 .c1 .c2 x₂ x₃)
+  rewrite x
+        = inversion x₂
+  where
+    inversion : true ≡ false → _
+    inversion ()
+ceval-deterministic .(IFB b1 THEN c1 ELSE c2 FI) st st1 st2 (E-IfFalse .st .st1 b1 c1 c2 x x₁) (E-IfTrue .st .st2 .b1 .c1 .c2 x₂ x₃)
+  rewrite x
+        = inversion x₂
+  where
+    inversion : false ≡ true → _
+    inversion ()
+ceval-deterministic .(IFB b1 THEN c1 ELSE c2 FI) st st1 st2 (E-IfFalse .st .st1 b1 c1 c2 x x₁) (E-IfFalse .st .st2 .b1 .c1 .c2 x₂ x₃) = ceval-deterministic c2 st st1 st2 x₁ x₃
+ceval-deterministic .(WHILE b1 DO c1 END) .st2 .st2 st2 (E-WhileEnd b1 .st2 c1 x) (E-WhileEnd .b1 .st2 .c1 x₁) = refl
+ceval-deterministic .(WHILE b1 DO c1 END) .st1 st1 st2 (E-WhileEnd b1 .st1 c1 x) (E-WhileLoop .st1 st' .st2 .b1 .c1 x₁ x₂ x₃)
+  rewrite x
+        = inversion x₁
+  where
+    inversion : false ≡ true → _
+    inversion ()
+ceval-deterministic .(WHILE b1 DO c1 END) .st2 st1 st2 (E-WhileLoop .st2 st' .st1 b1 c1 x x₁ x₂) (E-WhileEnd .b1 .st2 .c1 x₃)
+  rewrite x
+        = inversion x₃
+  where
+    inversion : true ≡ false → _
+    inversion ()
+ceval-deterministic .(WHILE b1 DO c1 END) st st1 st2 (E-WhileLoop .st st' .st1 b1 c1 x x₁ x₂) (E-WhileLoop .st st'' .st2 .b1 .c1 x₃ x₄ x₅)
+  rewrite ceval-deterministic c1 st st' st'' x₁ x₄
+        | ceval-deterministic WHILE b1 DO c1 END st'' st1 st2 x₂ x₅
+        = refl
+
+ceval-deterministic' : ∀ c st st1 st2 →
+                       c / st ⇓ st1 →
+                       c / st ⇓ st2 →
+                       st1 ≡ st2
+ceval-deterministic' c st st1 st2 He1 He2 with ceval→ceval-step c st st1 He1 | ceval→ceval-step c st st2 He2
+ceval-deterministic' c st st1 st2 He1 He2 | i1 , E1 | i2 , E2
+  = just-inversion (sym (ceval-step-more i1 (i1 + i2) st st1 c (m≤m+n i1 i2) E1) ⟨ trans ⟩
+                    ceval-step-more i2 (i1 + i2) st st2 c (n≤m+n i1 i2) E2)
+  where
+    just-inversion : ∀ {a} {X : Set a} {x y : X} → Maybe.just x ≡ just y → x ≡ y
+    just-inversion refl = refl
