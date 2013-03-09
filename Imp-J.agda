@@ -901,3 +901,11 @@ ceval→ceval-step .(WHILE b1 DO c1 END) st st' (E-WhileLoop .st st'' .st' b1 c1
             | ceval-step-more proj₁ (proj₁ + proj₃) st st'' c1 (m≤m+n proj₁ proj₃) proj₂
             | ceval-step-more proj₃ (proj₁ + proj₃) st'' st' WHILE b1 DO c1 END (n≤m+n proj₁ proj₃) proj₄
             = refl
+
+open import Function.Equivalence
+
+ceval-and-ceval-step-coincide : ∀ c st st' →
+                                c / st ⇓ st' ⇔ ∃ (λ i → ceval-step st c i ≡ just st')
+ceval-and-ceval-step-coincide = λ c st st' → equivalence (ceval→ceval-step c st st') (ceval-step→ceval c st st')
+
+---- 実行の決定性 -------------------------------------------------------------
