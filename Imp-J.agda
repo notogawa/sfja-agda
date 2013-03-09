@@ -1103,3 +1103,106 @@ fact-body-preserves-invariant st ._ x Hinv Z≢0 (E-Seq .(Ident _ ∷= AMult (AI
         | sym x₂
         | *-assoc' (st Y) (suc m) (real-fact m)
         = refl
+
+fact-loop-preserves-invariant : ∀ st st' x →
+                                fact-invariant x st →
+                                fact-loop / st ⇓ st' →
+                                fact-invariant x st'
+fact-loop-preserves-invariant .st' st' x Hinv (E-WhileEnd .(BNot (BEq (AId (Ident 2)) (ANum 0))) .st' .(Ident 1 ∷= AMult (AId (Ident 1)) (AId (Ident 2)) # Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1)) x₁) = Hinv
+fact-loop-preserves-invariant st st' x Hinv (E-WhileLoop .st st'' .st' .(BNot (BEq (AId (Ident 2)) (ANum 0))) .(Ident 1 ∷= AMult (AId (Ident 1)) (AId (Ident 2)) # Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1)) x₁ He He₁) = fact-loop-preserves-invariant st'' st' x He' He₁
+  where
+    open import Data.Bool.Properties
+    He' = fact-body-preserves-invariant st st'' x Hinv (beq-nat-false (st Z) 0 (sym (not-involutive (beq-nat (st Z) 0)) ⟨ trans ⟩ cong not x₁)) He
+
+guard-false-after-loop : ∀ b c st st' →
+                         (WHILE b DO c END) / st ⇓ st' →
+                         beval st' b ≡ false
+guard-false-after-loop b c .st' st' (E-WhileEnd .b .st' .c x) = x
+guard-false-after-loop b c st st' (E-WhileLoop .st st'' .st' .b .c x H H₁) = guard-false-after-loop b c st'' st' H₁
+
+
+fact-com-correct : ∀ st st' x →
+                   st X ≡ x →
+                   fact-com / st ⇓ st' →
+                   st' Y ≡ real-fact x
+fact-com-correct st st' x HX (E-Seq .(Ident 2 ∷= AId (Ident 0)) .(Ident 1 ∷= ANum 1 # WHILE BNot (BEq (AId (Ident 2)) (ANum 0)) DO Ident 1 ∷= AMult (AId (Ident 1)) (AId (Ident 2)) # Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1) END) .st .(λ x' → if beq-id (Ident 2) x' then n else st x') .st' (E-Ass .st .(AId (Ident 0)) n .(Ident 2) x₁) (E-Seq .(Ident 1 ∷= ANum 1) .(WHILE BNot (BEq (AId (Ident 2)) (ANum 0)) DO Ident 1 ∷= AMult (AId (Ident 1)) (AId (Ident 2)) # Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1) END) .(λ x' → if beq-id (Ident 2) x' then n else st x') .(λ x' → if beq-id (Ident 1) x' then n₁ else (if beq-id (Ident 2) x' then n else st x')) .st' (E-Ass .(λ x' → if beq-id (Ident 2) x' then n else st x') .(ANum 1) n₁ .(Ident 1) x₂) Hce₂))
+  rewrite sym x₂
+        | HX
+        | x₁
+        = assert assert1
+  where
+    n+0≡n : ∀ n → n + 0 ≡ n
+    n+0≡n zero    = refl
+    n+0≡n (suc n) = cong suc $ n+0≡n n
+
+    n*1≡n : ∀ n → n * 1 ≡ n
+    n*1≡n zero    = refl
+    n*1≡n (suc n) = cong suc $ n*1≡n n
+
+    assert1 : fact-invariant n st'
+    assert1 = fact-loop-preserves-invariant
+                (λ x' →
+                   if beq-id Y x' then 1 else (if beq-id Z x' then n else st x'))
+                st' n (n+0≡n (real-fact n)) Hce₂
+
+    assert2 : ∀ st' → beval st' (BNot (BEq (AId Z) (ANum 0))) ≡ false → st' Z ≡ 0
+    assert2 st' H with st' Z
+    assert2 st' H | zero = refl
+    assert2 st' () | suc _
+
+    assert : fact-invariant n st' → st' Y ≡ real-fact n
+    assert
+      rewrite assert2 st' (guard-false-after-loop _ _ _ _ Hce₂)
+            | n*1≡n (st' Y)
+            = λ z → z
+{-
+練習問題: ★★★★, optional (subtract_slowly_spec)
+上の fact_com の仕様、および以下の不変式をガイドとして、 subtract_slowly の仕様を証明しなさい。
+-}
+ss-invariant : (x z : ℕ) (st : state) → Set
+ss-invariant x z st = st Z ∸ st X ≡ z ∸ x
+
+ss-body-preserves-invariant : ∀ st st' x z →
+                              ss-invariant x z st →
+                              st X ≢ 0 →
+                              subtract-slowly-body / st ⇓ st' →
+                              ss-invariant x z st'
+ss-body-preserves-invariant st .(λ x' → if beq-id X x' then n₁ else (if beq-id Z x' then n else st x')) x z Hinv HstX0 (E-Seq .(Z ∷= AMinus (AId Z) (ANum 1)) .(X ∷= AMinus (AId X) (ANum 1)) .st .(λ x' → if beq-id Z x' then n else st x') .(λ x' → if beq-id X x' then n₁ else (if beq-id Z x' then n else st x')) (E-Ass .st .(AMinus (AId Z) (ANum 1)) n .Z x₁) (E-Ass .(λ x' → if beq-id Z x' then n else st x') .(AMinus (AId X) (ANum 1)) n₁ .X x₂)) with st X
+ss-body-preserves-invariant st ._ x z Hinv HstX0 (E-Seq .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .st ._ ._ (E-Ass .st .(AMinus (AId (Ident _)) (ANum _)) n .(Ident _) x₁) (E-Ass ._ .(AMinus (AId (Ident _)) (ANum _)) n₁ .(Ident _) x₂)) | zero = ⊥-elim (HstX0 refl)
+ss-body-preserves-invariant st ._ x z Hinv HstX0 (E-Seq .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .(Ident _ ∷= AMinus (AId (Ident _)) (ANum _)) .st ._ ._ (E-Ass .st .(AMinus (AId (Ident _)) (ANum _)) n .(Ident _) x₁) (E-Ass ._ .(AMinus (AId (Ident _)) (ANum _)) n₁ .(Ident _) x₂)) | suc m
+  rewrite sym (∸-+-assoc (st Z) 1 m)
+        | x₁
+        | x₂
+        = Hinv
+
+ss-loop-preserves-invariant : ∀ st st' x z →
+                              ss-invariant x z st →
+                              subtract-slowly / st ⇓ st' →
+                              ss-invariant x z st'
+ss-loop-preserves-invariant .st' st' x z Hinv (E-WhileEnd .(BNot (BEq (AId (Ident 0)) (ANum 0))) .st' .(Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1) # Ident 0 ∷= AMinus (AId (Ident 0)) (ANum 1)) x₁) = Hinv
+ss-loop-preserves-invariant st st' x z Hinv (E-WhileLoop .st st'' .st' .(BNot (BEq (AId (Ident 0)) (ANum 0))) .(Ident 2 ∷= AMinus (AId (Ident 2)) (ANum 1) # Ident 0 ∷= AMinus (AId (Ident 0)) (ANum 1)) x₁ He He₁) = ss-loop-preserves-invariant st'' st' x z He' He₁
+  where
+    open import Data.Bool.Properties
+    He' = ss-body-preserves-invariant st st'' x z Hinv (beq-nat-false (st X) 0
+                                                          (sym (not-involutive (beq-nat (st X) 0)) ⟨ trans ⟩ cong not x₁)) He
+
+subtract-slowly-spec : ∀ st st' x z →
+                       st X ≡ x →
+                       st Z ≡ z →
+                       subtract-slowly / st ⇓ st' →
+                       st' Z ≡ z ∸ x
+subtract-slowly-spec st st' x z HX HZ He = assert assert1
+  where
+
+    assert1 : ss-invariant x z st'
+    assert1 = ss-loop-preserves-invariant st st' x z (cong₂ _∸_ HZ HX) He
+
+    assert2 : ∀ st' → beval st' (BNot (BEq (AId X) (ANum 0))) ≡ false → st' X ≡ 0
+    assert2 st' H with st' X
+    assert2 st' H | zero = refl
+    assert2 st' () | suc _
+
+    assert : ss-invariant x z st' → st' Z ≡ z ∸ x
+    assert
+      rewrite assert2 st' (guard-false-after-loop _ _ _ _ He)
+            = λ z → z

@@ -14,7 +14,7 @@ open import Data.Maybe public hiding (decSetoid; monad; monadPlus; monadZero)
 open import Relation.Nullary public
 open import Relation.Binary public
 import Relation.Binary.PropositionalEquality as PropEq
-open PropEq public using (_≡_; _≢_; refl; cong; sym; trans)
+open PropEq public using (_≡_; _≢_; refl; cong; cong₂; sym; trans)
 
 -- Require Export相当とはいえこのpublicの山は嫌過ぎる
 
