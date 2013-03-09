@@ -175,3 +175,32 @@ extend-shadow ctxt t1 t2 x1 x2 | true = refl
 extend-shadow ctxt t1 t2 x1 x2 | false = refl
 
 -- 使い勝手のいいタクティックをいくつか ---------------------------------------
+
+-- remember tactic
+Bool-remember : ∀ {a} {P : Set a} (b : Bool)
+                (Proof-true : b ≡ true → P) →
+                (Proof-false : b ≡ false → P) →
+                P
+Bool-remember true Proof-true Proof-false = Proof-true refl
+Bool-remember false Proof-true Proof-false = Proof-false refl
+
+ℕ-remember : ∀ {a} {P : Set a} (n : ℕ)
+             (Proof-zero : n ≡ 0 → P) →
+             (Proof-suc : ∃ (λ m → n ≡ suc m) → P) →
+             P
+ℕ-remember 0 Proof-zero Proof-suc = Proof-zero refl
+ℕ-remember (suc m) Proof-zero Proof-suc = Proof-suc (m , refl)
+
+Maybe-remember : ∀ {a b} {X : Set a} {P : Set b} (Mx : Maybe X)
+                 (Proof-just : ∃ (λ x → Mx ≡ just x) → P) →
+                 (Proof-nothing : Mx ≡ nothing → P) →
+                 P
+Maybe-remember (just x) Proof-just Proof-nothing = Proof-just (x , refl)
+Maybe-remember nothing Proof-just Proof-nothing = Proof-nothing refl
+
+List-remember : ∀ {a b} {X : Set a} {P : Set b} (xs : List X)
+                (Proof-[] : xs ≡ [] → P) →
+                (Proof-∷ : ∃ (λ z → ∃ (λ zs → xs ≡ z ∷ zs)) → P) →
+                P
+List-remember [] Proof-[] Proof-∷ = Proof-[] refl
+List-remember (x ∷ xs) Proof-[] Proof-∷ = Proof-∷ (x , xs , refl)

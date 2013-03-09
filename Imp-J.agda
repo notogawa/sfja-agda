@@ -691,20 +691,9 @@ ceval-step→ceval c st st' (i , jst≡jst') = ceval-step→ceval' c st st' i js
     just-inversion : ∀ {a} {X : Set a} {x y : X} → Maybe.just x ≡ just y → x ≡ y
     just-inversion refl = refl
 
-    just-inversion' : ∀ {a} {X : Set a} {y : X} → Maybe.nothing ≡ just y → ⊥
-    just-inversion' = λ ()
-
-    maybe-remember : ∀ {a} {X : Set a} (x : Maybe X) → (∃ λ a → x ≡ just a) ⊎ x ≡ nothing
-    maybe-remember (just x) = inj₁ (x , refl)
-    maybe-remember nothing = inj₂ refl
-
-    bool-remember : ∀ b → b ≡ true ⊎ b ≡ false
-    bool-remember true = inj₁ refl
-    bool-remember false = inj₂ refl
-
     ceval-step→ceval' : ∀ c st st' i →
-                       ceval-step st c i ≡ just st' →
-                       c / st ⇓ st'
+                        ceval-step st c i ≡ just st' →
+                        c / st ⇓ st'
     ceval-step→ceval' c st st' zero ()
     ceval-step→ceval' SKIP st st' (suc i) jst≡jst'
       rewrite just-inversion jst≡jst'
@@ -712,38 +701,87 @@ ceval-step→ceval c st st' (i , jst≡jst') = ceval-step→ceval' c st st' i js
     ceval-step→ceval' (x ∷= x₁) st st' (suc i) jst≡jst'
       rewrite sym (just-inversion jst≡jst')
             = E-Ass st x₁ (aeval st x₁) x refl
-    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' with maybe-remember (ceval-step st c i)
-    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' | inj₁ (st'' , x)
-      rewrite x
-            = E-Seq c c₁ st st'' st'
-                (ceval-step→ceval' c st st'' i x)
-                (ceval-step→ceval' c₁ st'' st' i jst≡jst')
-    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst' | inj₂ y
-      rewrite y
-            = ⊥-elim (just-inversion' jst≡jst')
-    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' with bool-remember (beval st x)
-    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' | inj₁ x₁
-      rewrite x₁
-            = E-IfTrue st st' x c c₁ x₁ (ceval-step→ceval' c st st' i jst≡jst')
-    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst' | inj₂ y
-      rewrite y
-            = E-IfFalse st st' x c c₁ y (ceval-step→ceval' c₁ st st' i jst≡jst')
-    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' with bool-remember (beval st x)
-    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ with maybe-remember (ceval-step st c i)
-    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ | inj₁ (st'' , proj₂)
-      rewrite x₁
-            | proj₂
-            = E-WhileLoop st st'' st' x c x₁
-                (ceval-step→ceval' c st st'' i proj₂)
-                (ceval-step→ceval' WHILE x DO c END st'' st' i jst≡jst')
-    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₁ x₁ | inj₂ y
-      rewrite x₁
-            | y
-            = ⊥-elim (just-inversion' jst≡jst')
-    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst' | inj₂ y
-      rewrite y
-            | sym (just-inversion jst≡jst')
-            = E-WhileEnd x st c y
+    ceval-step→ceval' (c # c₁) st st' (suc i) jst≡jst'
+      = Maybe-remember (ceval-step st c i)
+          (assert-just jst≡jst')
+          (assert-nothing jst≡jst')
+      where
+        assert-just : ceval-step st (c # c₁) (suc i) ≡ just st' →
+                      ∃ (λ x → ceval-step st c i ≡ just x) →
+                      (c # c₁) / st ⇓ st'
+        assert-just jst≡jst' (proj₁ , proj₂)
+          rewrite proj₂
+                = E-Seq c c₁ st proj₁ st'
+                    (ceval-step→ceval' c st proj₁ i proj₂)
+                    (ceval-step→ceval' c₁ proj₁ st' i jst≡jst')
+        assert-nothing : ceval-step st (c # c₁) (suc i) ≡ just st' →
+                         ceval-step st c i ≡ nothing →
+                         (c # c₁) / st ⇓ st'
+        assert-nothing jst≡jst' y
+          rewrite y
+                = inversion jst≡jst'
+          where
+            inversion : nothing ≡ just st' → _
+            inversion ()
+    ceval-step→ceval' IFB x THEN c ELSE c₁ FI st st' (suc i) jst≡jst'
+      = Bool-remember (beval st x)
+          (assert-true jst≡jst')
+          (assert-false jst≡jst')
+      where
+        assert-true : ceval-step st IFB x THEN c ELSE c₁ FI (suc i) ≡ just st' →
+                      beval st x ≡ true →
+                      IFB x THEN c ELSE c₁ FI / st ⇓ st'
+        assert-true jst≡jst' t
+          rewrite t
+                = E-IfTrue st st' x c c₁ t (ceval-step→ceval' c st st' i jst≡jst')
+        assert-false : ceval-step st IFB x THEN c ELSE c₁ FI (suc i) ≡ just st' →
+                       beval st x ≡ false →
+                       IFB x THEN c ELSE c₁ FI / st ⇓ st'
+        assert-false jst≡jst' f
+          rewrite f
+                = E-IfFalse st st' x c c₁ f (ceval-step→ceval' c₁ st st' i jst≡jst')
+    ceval-step→ceval' WHILE x DO c END st st' (suc i) jst≡jst'
+      = Bool-remember (beval st x)
+          (assert-true jst≡jst')
+          (assert-false jst≡jst')
+      where
+        assert-true : ceval-step st WHILE x DO c END (suc i) ≡ just st' →
+                      beval st x ≡ true →
+                      WHILE x DO c END / st ⇓ st'
+        assert-true jst≡jst' t
+          = Maybe-remember (ceval-step st c i)
+              (assert-just jst≡jst' t)
+              (assert-nothing jst≡jst' t)
+          where
+          assert-just : ceval-step st WHILE x DO c END (suc i) ≡ just st' →
+                        beval st x ≡ true →
+                        ∃ (λ x₁ → ceval-step st c i ≡ just x₁) →
+                        WHILE x DO c END / st ⇓ st'
+          assert-just jst≡jst' f (proj₁ , proj₂)
+            rewrite f
+                  | proj₂
+                  = E-WhileLoop st proj₁ st' x c f
+                      (ceval-step→ceval' c st proj₁ i proj₂)
+                      (ceval-step→ceval' WHILE x DO c END proj₁ st' i jst≡jst')
+          assert-nothing : ceval-step st WHILE x DO c END (suc i) ≡ just st' →
+                           beval st x ≡ true →
+                           ceval-step st c i ≡ nothing →
+                           WHILE x DO c END / st ⇓ st'
+          assert-nothing jst≡jst' f n
+            rewrite f
+                  | n
+                  = inversion jst≡jst'
+            where
+              inversion : nothing ≡ just st' → _
+              inversion ()
+        assert-false : ceval-step st WHILE x DO c END (suc i) ≡ just st' →
+                       beval st x ≡ false →
+                       WHILE x DO c END / st ⇓ st'
+        assert-false jst≡jst' f
+          rewrite f
+                | sym (just-inversion jst≡jst')
+                = E-WhileEnd x st c f
+
 
 {-
 練習問題: ★★★★ (ceval_step__ceval_inf)
@@ -751,24 +789,6 @@ ceval-step→ceval c st st' (i , jst≡jst') = ceval-step→ceval' c st st' i js
 いつものテンプレートにのっとって、 ceval_step__ceval の形式的でない証明を書きましょう。 (帰納的に定義された値の場合分けに対するテンプレートは、 帰納法の仮定がないこと以外は帰納法と同じ見た目になるはずです。) 単に形式的な証明のステップを書き写すだけでなく、 人間の読者に主要な考えが伝わるようにしなさい。
 -}
 -- 略
-
-
-
--- remember tactic ってきっとこういうのなんだろうかね．
-maybe-remember : ∀ {a b} {X : Set a} {P : Set b} (Mx : Maybe X)
-                 (Proof-just : ∃ (λ x → Mx ≡ just x) → P) →
-                 (Proof-nothing : Mx ≡ nothing → P) →
-                 P
-maybe-remember (just x) Proof-just Proof-nothing = Proof-just (x , refl)
-maybe-remember nothing Proof-just Proof-nothing = Proof-nothing refl
-
-bool-remember : ∀ {a} {P : Set a} (b : Bool)
-                (Proof-true : b ≡ true → P) →
-                (Proof-false : b ≡ false → P) →
-                P
-bool-remember true Proof-true Proof-false = Proof-true refl
-bool-remember false Proof-true Proof-false = Proof-false refl
-
 ceval-step-more : ∀ i1 i2 st st' c →
                   i1 ≤ i2 →
                   ceval-step st c i1 ≡ just st' →
@@ -778,7 +798,7 @@ ceval-step-more (suc i1) zero st st' c () x
 ceval-step-more (suc i1) (suc i2) st st' SKIP i1≤i2 x = x
 ceval-step-more (suc i1) (suc i2) st st' (x ∷= x₁) i1≤i2 x₂ = x₂
 ceval-step-more (suc i1) (suc i2) st st' (c # c₁) (s≤s i1≤i2) x
-  = maybe-remember (ceval-step st c i1) (ceval-step-more-just x) (ceval-step-more-nothing x)
+  = Maybe-remember (ceval-step st c i1) (ceval-step-more-just x) (ceval-step-more-nothing x)
   where
     ceval-step-more-just : ceval-step st (c # c₁) (suc i1) ≡ just st' →
                            ∃ (λ x₁ → ceval-step st c i1 ≡ just x₁) →
@@ -796,7 +816,7 @@ ceval-step-more (suc i1) (suc i2) st st' (c # c₁) (s≤s i1≤i2) x
         inversion : nothing ≡ just st' → _
         inversion ()
 ceval-step-more (suc i1) (suc i2) st st' IFB x THEN c ELSE c₁ FI (s≤s i1≤i2) x₁
-  = bool-remember (beval st x) (ceval-step-more-true x₁) (ceval-step-more-false x₁)
+  = Bool-remember (beval st x) (ceval-step-more-true x₁) (ceval-step-more-false x₁)
   where
     ceval-step-more-true : ceval-step st IFB x THEN c ELSE c₁ FI (suc i1) ≡ just st' →
                            beval st x ≡ true →
@@ -807,7 +827,7 @@ ceval-step-more (suc i1) (suc i2) st st' IFB x THEN c ELSE c₁ FI (s≤s i1≤i
                             ceval-step st IFB x THEN c ELSE c₁ FI (suc i2) ≡ just st'
     ceval-step-more-false x₁ x⇓f rewrite x⇓f = ceval-step-more i1 i2 st st' c₁ i1≤i2 x₁
 ceval-step-more (suc i1) (suc i2) st st' WHILE x DO c END (s≤s i1≤i2) x₁
-  = maybe-remember (ceval-step st c i1) (ceval-step-more-just x₁) (ceval-step-more-nothing x₁)
+  = Maybe-remember (ceval-step st c i1) (ceval-step-more-just x₁) (ceval-step-more-nothing x₁)
   where
     ceval-step-more-just : ceval-step st WHILE x DO c END (suc i1) ≡ just st' →
                            ∃ (λ st'' → ceval-step st c i1 ≡ just st'') →

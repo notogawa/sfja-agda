@@ -734,71 +734,83 @@ sillyfun1 n | false with beq-nat n 5
 sillyfun1 n | false | true = true
 sillyfun1 n | false | false = false
 
--- うーん remember がマップできてるかよくわからないな．これ対応してるかなぁ？
+-- boolに対するremember
+-- data が決まると，*_ind のようにその型に対する remember tactic の実態も決まるはず．
+--
+bool-remember : ∀ {a} {P : Set a} (b : bool)
+                (Proof-true : b ≡ true → P) →
+                (Proof-false : b ≡ false → P) →
+                P
+bool-remember true Proof-true Proof-false = Proof-true refl
+bool-remember false Proof-true Proof-false = Proof-false refl
+
 sillyfun1-odd : ∀{n} → sillyfun1 n ≡ true → oddb n ≡ true
-sillyfun1-odd {n} = 3-5-is-odd ∘ n-is-3-or-5
+sillyfun1-odd {n} = bool-remember (beq-nat n 3) assert-n≡3 assert-n≢3
   where
-    n-is-3-or-5 : sillyfun1 n ≡ true → true ≡ beq-nat n 3 ⊎ true ≡ beq-nat n 5
-    n-is-3-or-5 eq with beq-nat n 3
-    n-is-3-or-5 refl | true = inj₁ refl -- remember as e3
-    n-is-3-or-5 eq   | false with beq-nat n 5 -- ここで分岐に使うと同時に以下で結果を保存
-    n-is-3-or-5 refl | false | true = inj₂ refl -- remember as e5
-    n-is-3-or-5 () | false | false
-    3-5-is-odd : true ≡ beq-nat n 3 ⊎ true ≡ beq-nat n 5 → oddb n ≡ true
-    3-5-is-odd (inj₁ eq) = cong oddb (beq-nat-≡ {n} {3} eq) -- use e3
-    3-5-is-odd (inj₂ eq) = cong oddb (beq-nat-≡ {n} {5} eq) -- use e5
+    assert-n≡3 : beq-nat n 3 ≡ true → sillyfun1 n ≡ true → oddb n ≡ true
+    assert-n≡3 n≡3 = λ _ → cong oddb (beq-nat-≡ {n} {3} (sym n≡3))
+    assert-n≢3 : beq-nat n 3 ≡ false → sillyfun1 n ≡ true → oddb n ≡ true
+    assert-n≢3 n≢3
+      = bool-remember (beq-nat n 5) (assert-n≢3-n≡5 n≢3) (assert-n≢3-n≢5 n≢3)
+      where
+        assert-n≢3-n≡5 : beq-nat n 3 ≡ false → beq-nat n 5 ≡ true →
+                         sillyfun1 n ≡ true → oddb n ≡ true
+        assert-n≢3-n≡5 n≢3 n≡5 = λ _ → cong oddb (beq-nat-≡ {n} {5} (sym n≡5))
+        assert-n≢3-n≢5 : beq-nat n 3 ≡ false → beq-nat n 5 ≡ false →
+                         sillyfun1 n ≡ true → oddb n ≡ true
+        assert-n≢3-n≢5 n≢3 n≢5 eq
+          rewrite n≢3
+                | n≢5
+                = inversion eq
+          where
+            inversion : false ≡ true → _
+            inversion ()
 
 {-
 練習問題: ★★ (override_same)
 -}
-t≡B∨f≡B : ∀{b} → true ≡ b ⊎ false ≡ b
-t≡B∨f≡B {true} = inj₁ refl
-t≡B∨f≡B {false} = inj₂ refl
-
 override-same : ∀{x} {X : Set x} →
                 (x1 : X) → (k1 k2 : nat) → (f : nat → X) →
-                f k1 ≡ x1 → (override f k1 x1) k2 ≡ f k2
-override-same x1 k1 k2 f eq = override-same' $ assert' $ t≡B∨f≡B {beq-nat k1 k2}
+                f k1 ≡ x1 → override f k1 x1 k2 ≡ f k2
+override-same x1 k1 k2 f eq = bool-remember (beq-nat k1 k2) assert-k1≡k2 assert-k1≢k2
   where
-    override-same' : (true ≡ beq-nat k1 k2 × x1 ≡ f k2) ⊎ (false ≡ beq-nat k1 k2 × f k2 ≡ f k2) →
-                     (override f k1 x1) k2 ≡ f k2
-    override-same' eq with beq-nat k1 k2
-    override-same' (inj₁ (refl , eq))| true = eq
-    override-same' (inj₁ (() , _))| false
-    override-same' (inj₂ (() , _))| true
-    override-same' (inj₂ (refl , refl))| false = refl
-    assert' : true ≡ beq-nat k1 k2 ⊎ false ≡ beq-nat k1 k2 →
-              (true ≡ beq-nat k1 k2 × x1 ≡ f k2) ⊎ (false ≡ beq-nat k1 k2 × f k2 ≡ f k2)
-    assert' (inj₁ eq') = inj₁ (eq' , (sym eq ⟨ trans ⟩ cong f (beq-nat-≡ {k1} {k2} eq')) )
-    assert' (inj₂ eq') = inj₂ (eq' , refl)
+    assert-k1≡k2 : beq-nat k1 k2 ≡ true → override f k1 x1 k2 ≡ f k2
+    assert-k1≡k2 k1≡k2
+      rewrite k1≡k2
+            | sym (beq-nat-≡ {k1} {k2} (sym k1≡k2))
+            = sym eq
+    assert-k1≢k2 : beq-nat k1 k2 ≡ false → override f k1 x1 k2 ≡ f k2
+    assert-k1≢k2 k1≢k2
+      rewrite k1≢k2
+            = refl
 
 {-
 練習問題: ★★★, optional (filter_exercise)
 
 この問題はやや難しいかもしれません。最初にintrosを使うと、帰納法を適用するための変数まで上に上げてしまうので気をつけてください。
 -}
-
 filter-exercise : ∀{x} {X : Set x} →
                   (test : X → bool) → (x : X) → (l lf : list X) →
                   filter test l ≡ x ∷ lf → test x ≡ true
 filter-exercise test x [] lf ()
-filter-exercise test x (y ∷ ys) lf eq = assert2 $ assert1 eq
+filter-exercise test x (y ∷ ys) lf eq
+  = bool-remember (test y) (assert-true eq) (assert-false eq)
   where
-    head-inversion : ∀{x} {X : Set x} →
-                     (a b : X) → (as bs : list X) →
+    inversion-head : ∀{x} {X : Set x} →
+                     {a b : X} → {as bs : list X} →
                      a ∷ as ≡ b ∷ bs → a ≡ b
-    head-inversion .b b .bs bs refl = refl
-    assert1 : filter test (y ∷ ys) ≡ x ∷ lf →
-              (true ≡ test y × y ∷ filter test ys ≡ x ∷ lf) ⊎
-              (false ≡ test y × filter test ys ≡ x ∷ lf)
-    assert1 eq with test y
-    assert1 eq | true = inj₁ (refl , eq)
-    assert1 eq | false = inj₂ (refl , eq)
-    assert2 : (true ≡ test y × y ∷ filter test ys ≡ x ∷ lf) ⊎
-              (false ≡ test y × filter test ys ≡ x ∷ lf) ->
-              test x ≡ true
-    assert2 (inj₂ (eq1 , eq2)) = filter-exercise test x ys lf eq2
-    assert2 (inj₁ (eq1 , eq2)) = sym (eq1 ⟨ trans ⟩ cong test (head-inversion y x (filter test ys) lf eq2))
+    inversion-head {a = .b} {b} {.bs} {bs} refl = refl
+    assert-true : filter test (y ∷ ys) ≡ x ∷ lf →
+                  test y ≡ true → test x ≡ true
+    assert-true eq ty≡t
+      rewrite ty≡t
+            | inversion-head eq
+            = ty≡t
+    assert-false : filter test (y ∷ ys) ≡ x ∷ lf →
+                   test y ≡ false → test x ≡ true
+    assert-false eq ty≡f
+      rewrite ty≡f
+            = filter-exercise test x ys lf eq
 
 ---- apply ... with ...タクティック -------------------------------------------
 
@@ -838,44 +850,59 @@ beq-nat-trans {n} {m} {p} eq1 eq2
 override-permute : ∀{x} {X : Set x} →
                    (x1 x2 : X) → (k1 k2 k3 : nat) → (f : nat → X) →
                    false ≡ beq-nat k2 k1 →
-                   (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
-override-permute x1 x2 k1 k2 k3 f eq = assert2 $ assert1
+                   override (override f k2 x2) k1 x1 k3 ≡
+                   override (override f k1 x1) k2 x2 k3
+override-permute x1 x2 k1 k2 k3 f
+  = bool-remember (beq-nat k1 k3)
+      (bool-remember (beq-nat k2 k3)
+        assert-k2≡k3-k1≡k3
+        assert-k2≢k3-k1≡k3)
+      (bool-remember (beq-nat k2 k3)
+        assert-k2≡k3-k1≢k3
+        assert-k2≢k3-k1≢k3)
   where
-    assert1 : ((false ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
-               (false ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) ⊎
-              ((true ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
-               (true ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3))
-    assert1 with beq-nat k1 k3 | beq-nat k2 k3
-    ... | false | false = inj₁ (inj₁ (refl , refl))
-    ... | false | true = inj₁ (inj₂ (refl , refl))
-    ... | true | false = inj₂ (inj₁ (refl , refl))
-    ... | true | true = inj₂ (inj₂ (refl , refl))
-    assert2 : ((false ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
-               (false ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) ⊎
-              ((true ≡ beq-nat k1 k3 × false ≡ beq-nat k2 k3) ⊎
-               (true ≡ beq-nat k1 k3 × true ≡ beq-nat k2 k3)) →
-              (override (override f k2 x2) k1 x1) k3 ≡ (override (override f k1 x1) k2 x2) k3
-    assert2 (inj₁ (inj₁ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
-    assert2 (inj₁ (inj₁ (eq1 , eq2))) | false | false = refl
-    assert2 (inj₁ (inj₁ (eq1 , ()))) | false | true
-    assert2 (inj₁ (inj₁ (() , eq2))) | true | false
-    assert2 (inj₁ (inj₁ (() , eq2))) | true | true
-    assert2 (inj₁ (inj₂ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
-    assert2 (inj₁ (inj₂ (eq1 , ()))) | false | false
-    assert2 (inj₁ (inj₂ (eq1 , eq2))) | false | true = refl
-    assert2 (inj₁ (inj₂ (eq1 , ()))) | true | false
-    assert2 (inj₁ (inj₂ (() , eq2))) | true | true
-    assert2 (inj₂ (inj₁ (eq1 , eq2))) with beq-nat k1 k3 | beq-nat k2 k3
-    assert2 (inj₂ (inj₁ (() , eq2))) | false | false
-    assert2 (inj₂ (inj₁ (() , eq2))) | false | true
-    assert2 (inj₂ (inj₁ (eq1 , eq2))) | true | false = refl
-    assert2 (inj₂ (inj₁ (eq1 , ()))) | true | true
-    assert2 (inj₂ (inj₂ (eq1 , eq2))) with trans eq
-                                             (sym
-                                              (beq-nat-trans {k2} {k3} {k1} eq2
-                                               (eq1 ⟨ trans ⟩ beq-nat-sym k1 k3)))
-    assert2 (inj₂ (inj₂ (eq1 , eq2))) | ()
-
+    assert-k2≡k3-k1≡k3 : beq-nat k2 k3 ≡ true →
+                         beq-nat k1 k3 ≡ true →
+                         false ≡ beq-nat k2 k1 →
+                         override (override f k2 x2) k1 x1 k3 ≡
+                         override (override f k1 x1) k2 x2 k3
+    assert-k2≡k3-k1≡k3 k2≡k3 k1≡k3 k2≢k1
+      rewrite k2≡k3
+            | k1≡k3
+            | beq-nat-≡ {k1} {k3} (sym k1≡k3)
+            | beq-nat-≡ {k2} {k3} (sym k2≡k3)
+            | sym (beq-nat-refl k3)
+            = inversion k2≢k1
+      where
+        inversion : false ≡ true → _
+        inversion ()
+    assert-k2≢k3-k1≡k3 : beq-nat k2 k3 ≡ false →
+                         beq-nat k1 k3 ≡ true →
+                         false ≡ beq-nat k2 k1 →
+                         override (override f k2 x2) k1 x1 k3 ≡
+                         override (override f k1 x1) k2 x2 k3
+    assert-k2≢k3-k1≡k3 k2≢k3 k1≡k3 k2≢k1
+      rewrite k2≢k3
+            | k1≡k3
+            = refl
+    assert-k2≡k3-k1≢k3 : beq-nat k2 k3 ≡ true →
+                         beq-nat k1 k3 ≡ false →
+                         false ≡ beq-nat k2 k1 →
+                         override (override f k2 x2) k1 x1 k3 ≡
+                         override (override f k1 x1) k2 x2 k3
+    assert-k2≡k3-k1≢k3 k2≡k3 k1≢k3 k2≢k1
+      rewrite k2≡k3
+            | k1≢k3
+            = refl
+    assert-k2≢k3-k1≢k3 : beq-nat k2 k3 ≡ false →
+                         beq-nat k1 k3 ≡ false →
+                         false ≡ beq-nat k2 k1 →
+                         override (override f k2 x2) k1 x1 k3 ≡
+                         override (override f k1 x1) k2 x2 k3
+    assert-k2≢k3-k1≢k3 k2≢k3 k1≢k3 k2≢k1
+      rewrite k2≢k3
+            | k1≢k3
+            = refl
 
 -- まとめ ---------------------------------------------------------------------
 
