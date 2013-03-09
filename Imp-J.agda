@@ -1206,3 +1206,93 @@ subtract-slowly-spec st st' x z HX HZ He = assert assert1
     assert
       rewrite assert2 st' (guard-false-after-loop _ _ _ _ He)
             = λ z → z
+
+-- 追加の練習問題 -------------------------------------------------------------
+{-
+練習問題: ★★★★, optional (add_for_loop)
+-}
+-- 略 (メンドクサイ)
+
+{-
+練習問題: ★★★, optional (short_circuit)
+-}
+-- 略
+
+{-
+練習問題: ★★★★, recommended (stack_compiler)
+-}
+data sinstr : Set where
+  SPush : ℕ → sinstr
+  SLoad : ident → sinstr
+  SPlus : sinstr
+  SMinus : sinstr
+  SMult : sinstr
+
+s-execute : state → List ℕ → List sinstr → List ℕ
+s-execute st stack [] = stack
+s-execute st stack (SPush x ∷ prog) = s-execute st (x ∷ stack) prog
+s-execute st stack (SLoad x ∷ prog) = s-execute st (st x ∷ stack) prog
+s-execute st [] (SPlus ∷ prog) = s-execute st [] prog
+s-execute st (x ∷ []) (SPlus ∷ prog) = s-execute st [ x ] prog
+s-execute st (x ∷ x₁ ∷ stack) (SPlus ∷ prog) = s-execute st (x₁ + x ∷ stack) prog
+s-execute st [] (SMinus ∷ prog) = s-execute st [] prog
+s-execute st (x ∷ []) (SMinus ∷ prog) = s-execute st [ x ] prog
+s-execute st (x ∷ x₁ ∷ stack) (SMinus ∷ prog) = s-execute st (x₁ ∸ x ∷ stack) prog
+s-execute st [] (SMult ∷ prog) = s-execute st [] prog
+s-execute st (x ∷ []) (SMult ∷ prog) = s-execute st [ x ] prog
+s-execute st (x ∷ x₁ ∷ stack) (SMult ∷ prog) = s-execute st (x₁ * x ∷ stack) prog
+
+s-execute1 : s-execute empty-state [] (SPush 5 ∷ SPush 3 ∷ SPush 1 ∷ SMinus ∷ []) ≡ 2 ∷ 5 ∷ []
+s-execute1 = refl
+
+s-execute2 : s-execute (update empty-state X 3) (3 ∷ 4 ∷ []) (SPush 4 ∷ SLoad X ∷ SMult ∷ SPlus ∷ []) ≡ 15 ∷ 4 ∷ []
+s-execute2 = refl
+
+s-compile : aexp → List sinstr
+s-compile (ANum x) = [ SPush x ]
+s-compile (AId x) = [ SLoad x ]
+s-compile (APlus e e₁) = s-compile e ++ s-compile e₁ ++ [ SPlus ]
+s-compile (AMinus e e₁) = s-compile e ++ s-compile e₁ ++ [ SMinus ]
+s-compile (AMult e e₁) = s-compile e ++ s-compile e₁ ++ [ SMult ]
+
+s-compile-correct : ∀ (st : state) (e : aexp) →
+                    s-execute st [] (s-compile e) ≡ [ aeval st e ]
+s-compile-correct st e = s-compile-correct' st [] e
+  where
+    s-compile-dist : ∀ (st : state) (stack : List ℕ) (e₁ e₂ : List sinstr) →
+                     s-execute st stack (e₁ ++ e₂) ≡ s-execute st (s-execute st stack e₁) e₂
+    s-compile-dist st stack [] e₂ = refl
+    s-compile-dist st stack (SPush x ∷ e₁) e₂ = s-compile-dist st (x ∷ stack) e₁ e₂
+    s-compile-dist st stack (SLoad x ∷ e₁) e₂ = s-compile-dist st (st x ∷ stack) e₁ e₂
+    s-compile-dist st [] (SPlus ∷ e₁) e₂ = s-compile-dist st [] e₁ e₂
+    s-compile-dist st (x ∷ []) (SPlus ∷ e₁) e₂ = s-compile-dist st [ x ] e₁ e₂
+    s-compile-dist st (x ∷ x₁ ∷ stack) (SPlus ∷ e₁) e₂ = s-compile-dist st (x₁ + x ∷ stack) e₁ e₂
+    s-compile-dist st [] (SMinus ∷ e₁) e₂ = s-compile-dist st [] e₁ e₂
+    s-compile-dist st (x ∷ []) (SMinus ∷ e₁) e₂ = s-compile-dist st [ x ] e₁ e₂
+    s-compile-dist st (x ∷ x₁ ∷ stack) (SMinus ∷ e₁) e₂ = s-compile-dist st (x₁ ∸ x ∷ stack) e₁ e₂
+    s-compile-dist st [] (SMult ∷ e₁) e₂ = s-compile-dist st [] e₁ e₂
+    s-compile-dist st (x ∷ []) (SMult ∷ e₁) e₂ = s-compile-dist st [ x ] e₁ e₂
+    s-compile-dist st (x ∷ x₁ ∷ stack) (SMult ∷ e₁) e₂ = s-compile-dist st (x₁ * x ∷ stack) e₁ e₂
+
+    s-compile-correct' : ∀ (st : state) (stack : List ℕ) (e : aexp) →
+                         s-execute st stack (s-compile e) ≡ [ aeval st e ] ++ stack
+    s-compile-correct' st stack (ANum x) = refl
+    s-compile-correct' st stack (AId x) = refl
+    s-compile-correct' st stack (APlus e₁ e₂)
+      rewrite s-compile-dist st stack (s-compile e₁) (s-compile e₂ ++ [ SPlus ])
+            | s-compile-correct' st stack e₁
+            | s-compile-dist st (aeval st e₁ ∷ stack) (s-compile e₂) [ SPlus ]
+            | s-compile-correct' st (aeval st e₁ ∷ stack) e₂
+            = refl
+    s-compile-correct' st stack (AMinus e₁ e₂)
+      rewrite s-compile-dist st stack (s-compile e₁) (s-compile e₂ ++ [ SMinus ])
+            | s-compile-correct' st stack e₁
+            | s-compile-dist st (aeval st e₁ ∷ stack) (s-compile e₂) [ SMinus ]
+            | s-compile-correct' st (aeval st e₁ ∷ stack) e₂
+            = refl
+    s-compile-correct' st stack (AMult e₁ e₂)
+      rewrite s-compile-dist st stack (s-compile e₁) (s-compile e₂ ++ [ SMult ])
+            | s-compile-correct' st stack e₁
+            | s-compile-dist st (aeval st e₁ ∷ stack) (s-compile e₂) [ SMult ]
+            | s-compile-correct' st (aeval st e₁ ∷ stack) e₂
+            = refl
