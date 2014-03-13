@@ -626,39 +626,42 @@ private
     init [] ()
     init (_ ∷ []) refl = []
     init (x ∷ x' ∷ xs) refl = x ∷ init (x' ∷ xs) refl
-    length-init : ∀ {x} {X : Set x} → (x : X) → (xs : list X) →
-                  length (init (x ∷ xs) refl) ≡ length xs
-    length-init _ [] = refl
-    length-init _ (x₁ ∷ xs) = cong S (length-init _ xs)
+    head-≡ : ∀{x} {X : Set x} →
+             (a b : X) → (as bs : list X) →
+             a ∷ as ≡ b ∷ bs → a ≡ b
+    head-≡ .b b .bs bs refl = refl
+    tail-≡ : ∀{x} {X : Set x} →
+             (a b : X) → (as bs : list X) →
+             a ∷ as ≡ b ∷ bs → as ≡ bs
+    tail-≡ .b b .bs bs refl = refl
+    last-≡ : ∀{x} {X : Set x} →
+             (a b : X) → (as bs : list X) →
+             snoc as a ≡ snoc bs b → a ≡ b
+    last-≡ a b [] [] eq = head-≡ a b [] [] eq
+    last-≡ a b [] (x₁ ∷ []) ()
+    last-≡ a b [] (x₁ ∷ x₂ ∷ bs) ()
+    last-≡ a b (x₁ ∷ []) [] ()
+    last-≡ a b (x₁ ∷ x₂ ∷ as) [] ()
+    last-≡ a b (x₁ ∷ as) (x₂ ∷ bs) eq = last-≡ a b as bs
+                                      $ tail-≡ x₁ x₂ (snoc as a) (snoc bs b) eq
+    init-≡ : ∀{x} {X : Set x} →
+             (a b : X) → (as bs : list X) →
+             snoc as a ≡ snoc bs b → as ≡ bs
+    init-≡ a b [] [] eq = refl
+    init-≡ a b [] (x₁ ∷ []) ()
+    init-≡ a b [] (x₁ ∷ x₂ ∷ bs) ()
+    init-≡ a b (x₁ ∷ []) [] ()
+    init-≡ a b (x₁ ∷ x₂ ∷ as) [] ()
+    init-≡ a b (x₁ ∷ as) (x₂ ∷ bs) eq
+      rewrite head-≡ x₁ x₂ _ _ eq
+            = cong (λ xs → x₂ ∷ xs)
+            $ init-≡ a b as bs
+            $ tail-≡ _ _ _ _ eq
+
     xs→snoc-init-xs-last-xs : ∀ {x} {X : Set x} → (xs : list X) → (eq : beq-nat 0 (length xs) ≡ false) → xs ≡ snoc (init xs eq) (last xs eq)
     xs→snoc-init-xs-last-xs [] ()
     xs→snoc-init-xs-last-xs (x ∷ []) refl = refl
     xs→snoc-init-xs-last-xs (x ∷ x' ∷ xs) refl = cong (_∷_ x) $ xs→snoc-init-xs-last-xs (x' ∷ xs) refl
-    head-inversion : ∀{x} {X : Set x} →
-                     (a b : X) → (as bs : list X) →
-                     a ∷ as ≡ b ∷ bs → a ≡ b
-    head-inversion .b b .bs bs refl = refl
-    tail-inversion : ∀{x} {X : Set x} →
-                     (a b : X) → (as bs : list X) →
-                     a ∷ as ≡ b ∷ bs → as ≡ bs
-    tail-inversion .b b .bs bs refl = refl
-    rev-snoc-commute-rev-cons : ∀{x} {X : Set x} → (n : X) (ls : list X) → rev (snoc ls n) ≡ n ∷ rev ls
-    rev-snoc-commute-rev-cons n [] = refl
-    rev-snoc-commute-rev-cons n (x ∷ xs) = cong (λ as → snoc as x) (rev-snoc-commute-rev-cons n xs)
-    rev-involutive : ∀{x} {X : Set x} → (l : list X) → rev (rev l) ≡ l
-    rev-involutive [] = refl
-    rev-involutive (x ∷ xs)
-      rewrite rev-snoc-commute-rev-cons x (rev xs)
-            | rev-involutive xs
-            = refl
-    rev-injective : ∀{x} {X : Set x} → (l1 l2 : list X) → rev l1 ≡ rev l2 → l1 ≡ l2
-    rev-injective xs ys eq = rev-injective' (cong rev eq)
-      where
-        rev-injective' : rev (rev xs) ≡ rev (rev ys) → xs ≡ ys
-        rev-injective' eq
-          rewrite rev-involutive xs
-                | rev-involutive ys
-                = eq
 
     length-init-x∷xs≡S-length-xs : ∀ {x} {X : Set x} → (x : X) → (xs : list X) →
                                    (eq : beq-nat 0 (length (x ∷ xs)) ≡ false) →
@@ -677,20 +680,15 @@ private
     l≡rev-l→pal-l (S (S n)) (x₁ ∷ x₂ ∷ xs) len eq
       rewrite cong (λ as → rev (x₁ ∷ as)) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
             | rev-snoc (last (x₂ ∷ xs) refl) (init (x₂ ∷ xs) refl)
-            | cong (λ as → x₁ ∷ as) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
-            | sym (head-inversion _ _ _ _ eq)
-            = pal-cons x₁ init-xs $
-              l≡rev-l→pal-l n init-xs length-init-xs≡n $
-              rev-injective init-xs (rev init-xs) $
-              tail-inversion last-xs x₁ _ _ $
-              (sym (rev-snoc last-xs init-xs) ⟨ trans ⟩
-               cong rev (tail-inversion _ _ _ _ eq) ⟨ trans ⟩
-               rev-snoc x₁ (rev init-xs))
+            | cong (_∷_ x₁) (xs→snoc-init-xs-last-xs (x₂ ∷ xs) refl)
+            | sym (head-≡ _ _ _ _ eq)
+            = pal-cons x₁ (init (x₂ ∷ xs) refl)
+            $ l≡rev-l→pal-l n _ length-init-xs≡n
+            $ init-≡ _ _ _ _
+            $ tail-≡ _ _ _ _ eq
       where
         length-init-xs≡n = length-init-x∷xs≡S-length-xs x₂ xs refl ⟨ trans ⟩
                            eq-add-S (eq-add-S len)
-        init-xs = init (x₂ ∷ xs) refl
-        last-xs = last (x₂ ∷ xs) refl
 
 l≡rev-l→pal-l : ∀ {x} {X : Set x} →
                 (ls : list X) → ls ≡ rev ls → pal ls
